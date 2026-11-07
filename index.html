@@ -1,0 +1,2282 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>两个半场</title>
+<!--
+  两个半场：有关个人生活经历的网页
+  ------------------------------------------------------------
+  整个网站就是这一个 HTML 文件，用浏览器直接打开即可。
+  文件分三部分：
+    1. <style>   页面样式（颜色、字体、布局）
+    2. <body>    固定不变的页面骨架：顶栏、主体区域、页脚、几个弹窗
+    3. <script>  所有功能：IndexedDB 数据库、账号系统、页面切换、
+                 心得编辑器（Markdown）、随手记、媒体上传、收藏、搜索
+  所有数据都保存在浏览器的 IndexedDB 里，不需要服务器。
+  演示账号：demo，密码：123456（第一次打开时自动创建）
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=ZCOOL+QingKe+HuangYou&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   1. 设计变量：颜色、字体、圆角
+   想换配色，只需要改这里
+   ========================================================= */
+:root {
+  --chalk: #F1F4EF;       /* 粉笔白：页面底色 */
+  --paper: #FFFFFF;       /* 纸白：卡片、输入框 */
+  --turf: #D9E3D3;        /* 浅草色：边框、分隔线 */
+  --turf-soft: #E8EEE4;   /* 更浅的草色：标签底色 */
+  --pitch: #22573A;       /* 场地绿：体育分区、主按钮 */
+  --pitch-deep: #173F2A;
+  --pixel: #2F5FD0;       /* 像素蓝：游戏分区 */
+  --pixel-deep: #1F3F8C;
+  --score: #F2B705;       /* 记分牌黄：收藏、强调 */
+  --ink: #16201B;         /* 墨色：正文 */
+  --muted: #56655C;       /* 次要文字 */
+  --danger: #B3261E;      /* 删除、错误 */
+  --focus: #2F5FD0;       /* 键盘焦点框 */
+
+  --font-display: "ZCOOL QingKe HuangYou", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, "Noto Sans SC", monospace;
+
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 18px;
+  --wrap: 1180px;
+}
+
+/* =========================================================
+   2. 基础样式
+   ========================================================= */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--chalk);
+  color: var(--ink);
+  font: 16px/1.75 var(--font-body);
+}
+img, video { max-width: 100%; display: block; }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+h1, h2, h3 { line-height: 1.3; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+.sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: 16px; top: -60px; z-index: 50; background: var(--ink); color: var(--paper); padding: 8px 16px; border-radius: var(--r-sm); }
+.skip:focus { top: 12px; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 24px; }
+.muted { color: var(--muted); }
+.hint { color: var(--muted); font-size: 13px; }
+@media (max-width: 640px) { .wrap { padding: 0 16px; } }
+
+/* 按钮 */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; padding: 0 18px;
+  border: 1px solid var(--turf); border-radius: 8px;
+  background: var(--paper); font-weight: 500;
+  cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--pitch); border-color: var(--pitch); color: var(--paper); }
+.btn.primary:hover { background: var(--pitch-deep); border-color: var(--pitch-deep); }
+.btn.danger { color: var(--danger); }
+.btn.danger:hover { border-color: var(--danger); }
+.btn.ghost { background: transparent; border-color: transparent; }
+.btn.ghost:hover { border-color: var(--turf); }
+.btn.small { height: 32px; padding: 0 12px; font-size: 14px; }
+
+/* 收藏按钮：空心星 / 实心星 */
+.fav {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 12px;
+  border: 1px solid var(--turf); border-radius: 999px;
+  background: var(--paper); font-size: 14px; cursor: pointer; white-space: nowrap;
+}
+.fav:hover { border-color: var(--ink); }
+.fav .star::before { content: "☆"; }
+.fav[aria-pressed="true"] { background: var(--score); border-color: var(--score); font-weight: 700; }
+.fav[aria-pressed="true"] .star::before { content: "★"; }
+
+/* 标签小圆角 */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.tags li { font-size: 13px; padding: 1px 10px; border-radius: 999px; background: var(--turf-soft); color: var(--muted); }
+
+/* 空状态 */
+.empty { padding: 40px 24px; border: 2px dashed var(--turf); border-radius: var(--r-md); text-align: center; color: var(--muted); }
+.empty p { margin: 0 0 16px; }
+.empty p:last-child { margin-bottom: 0; }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+/* =========================================================
+   3. 顶栏
+   ========================================================= */
+.topbar { position: sticky; top: 0; z-index: 20; background: var(--paper); border-bottom: 1px solid var(--turf); }
+.topbar-inner { display: flex; align-items: center; gap: 20px; height: 64px; }
+.brand { font-family: var(--font-display); font-size: 30px; line-height: 1; text-decoration: none; white-space: nowrap; }
+.brand .a { color: var(--pixel); }
+.brand .b { color: var(--pitch); }
+.mainnav { display: flex; gap: 4px; }
+.mainnav a { padding: 6px 14px; border-radius: 999px; text-decoration: none; color: var(--muted); font-weight: 500; white-space: nowrap; }
+.mainnav a:hover { color: var(--ink); background: var(--turf-soft); }
+.mainnav a[aria-current="page"] { color: var(--paper); background: var(--ink); }
+.search { margin-left: auto; }
+.search input { width: 220px; height: 38px; padding: 0 16px; border: 1px solid var(--turf); border-radius: 999px; background: var(--chalk); }
+
+/* 登录后的用户菜单 */
+.user { position: relative; }
+.user-btn { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px 0 4px; border: 1px solid var(--turf); border-radius: 999px; background: var(--paper); cursor: pointer; }
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--pitch); color: var(--paper); display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.menu { display: none; position: absolute; right: 0; top: calc(100% + 8px); min-width: 160px; padding: 6px; background: var(--paper); border: 1px solid var(--turf); border-radius: var(--r-md); box-shadow: 0 16px 40px rgba(22, 32, 27, .16); }
+.menu.open { display: block; }
+.menu button { display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: var(--r-sm); background: none; text-align: left; cursor: pointer; }
+.menu button:hover { background: var(--chalk); }
+
+@media (max-width: 920px) {
+  .topbar { position: static; }
+  .topbar-inner { flex-wrap: wrap; height: auto; padding-top: 12px; padding-bottom: 12px; gap: 12px; }
+  #userArea { order: 1; margin-left: auto; }
+  .mainnav { order: 2; width: 100%; overflow-x: auto; }
+  .search { order: 3; width: 100%; margin-left: 0; }
+  .search input { width: 100%; }
+  .user-name { display: none; }
+  .user-btn { padding-right: 4px; }
+}
+
+/* =========================================================
+   4. 首页：一块被中线分成两半的球场
+   左半场 = 游戏（像素网格），右半场 = 体育（草坪条纹）
+   ========================================================= */
+.hero { padding: 40px 0 56px; }
+.hero-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 32px; margin-bottom: 24px; }
+.hero-title { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(60px, 9vw, 112px); line-height: .95; }
+.hero-title .a { color: var(--pixel); }
+.hero-title .b { color: var(--pitch); }
+.hero-sub { max-width: 26em; margin: 0; color: var(--muted); font-size: 17px; }
+
+.pitch { position: relative; display: grid; grid-template-columns: 1fr 1fr; min-height: clamp(380px, 58vh, 520px); border-radius: var(--r-lg); overflow: hidden; }
+.pitch::after { /* 中线 */
+  content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; margin-left: -1.5px;
+  background: var(--chalk); pointer-events: none;
+}
+.half {
+  position: relative; isolation: isolate;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 40px; color: var(--paper); text-decoration: none;
+}
+.half:hover { filter: brightness(1.06); }
+.half:focus-visible { outline: 4px solid var(--score); outline-offset: -4px; border-radius: 0; }
+.half-word { font-family: var(--font-display); font-size: clamp(68px, 10vw, 136px); line-height: 1; }
+.half-text { margin-top: 10px; max-width: 20em; font-size: 17px; }
+.half-go { align-self: flex-start; margin-top: 20px; padding: 8px 18px; border-radius: 999px; background: var(--paper); color: var(--ink); font-weight: 700; transition: background .2s; }
+.half:hover .half-go { background: var(--score); }
+
+.half-game {
+  background-color: var(--pixel);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .09) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.half-game::before { /* 用像素格子拼出的手柄方向键和两个按键 */
+  content: ""; position: absolute; z-index: -1;
+  left: 72px; top: 48px; width: 24px; height: 24px;
+  background: rgba(255, 255, 255, .3);
+  box-shadow:
+    -24px 24px 0 rgba(255, 255, 255, .3),
+    0 24px 0 rgba(255, 255, 255, .18),
+    24px 24px 0 rgba(255, 255, 255, .3),
+    0 48px 0 rgba(255, 255, 255, .3),
+    120px 24px 0 var(--score),
+    168px 0 0 rgba(255, 255, 255, .55);
+}
+.half-sport {
+  background: repeating-linear-gradient(90deg, var(--pitch) 0 60px, #265F40 60px 120px);
+  padding-left: calc(clamp(120px, 18vw, 210px) / 2 + 32px); /* 让文字避开中圈 */
+}
+.half-sport::before, .half-sport::after { /* 禁区和小禁区 */
+  content: ""; position: absolute; z-index: -1; right: 0;
+  border: 3px solid var(--chalk); border-right: 0;
+}
+.half-sport::before { top: 22%; height: 56%; width: 16%; }
+.half-sport::after { top: 38%; height: 24%; width: 6%; }
+
+.center-circle { position: absolute; z-index: 2; left: 50%; top: 50%; width: clamp(120px, 18vw, 210px); transform: translate(-50%, -50%); pointer-events: none; }
+.center-circle circle { fill: none; stroke: var(--chalk); stroke-width: 1.5; }
+.center-circle .ring { stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw-ring 1.2s .3s ease-out forwards; }
+.center-circle .dot { fill: var(--chalk); stroke: none; }
+@keyframes draw-ring { to { stroke-dashoffset: 0; } }
+
+@media (max-width: 720px) {
+  .pitch { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; min-height: 580px; }
+  .pitch::after { left: 0; right: 0; top: 50%; bottom: auto; width: auto; height: 3px; margin: -1.5px 0 0; }
+  .half, .half-sport { padding: 24px; }
+  .half-game { justify-content: flex-start; }
+  .half-game::before { display: none; }
+  .half-sport::before, .half-sport::after { right: auto; top: auto; bottom: 0; border: 3px solid var(--chalk); border-bottom: 0; }
+  .half-sport::before { left: 22%; width: 56%; height: 16%; }
+  .half-sport::after { left: 38%; width: 24%; height: 7%; }
+  .half-sport .half-word, .half-sport .half-text, .half-sport .half-go { margin-bottom: 0; }
+  .half-sport { justify-content: flex-start; padding-top: 64px; }
+}
+
+/* 首页下方：最近的心得 + 侧栏 */
+.home-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 48px; padding-bottom: 72px; }
+.section-title { margin: 0 0 16px; font-size: 24px; }
+.card { margin-bottom: 20px; padding: 24px; background: var(--paper); border: 1px solid var(--turf); border-radius: var(--r-md); }
+.card h2 { margin: 0 0 8px; font-size: 20px; }
+.card p { margin: 0 0 12px; }
+.card .actions { margin: 16px 0 12px; }
+.card-login { border-top: 5px solid var(--score); }
+.quick { list-style: none; margin: 12px 0 0; padding: 0; }
+.quick a { display: block; padding: 10px 0; border-top: 1px solid var(--turf-soft); text-decoration: none; font-weight: 500; }
+.quick a:hover { color: var(--pitch); }
+.more { margin-top: 16px; color: var(--muted); }
+@media (max-width: 860px) { .home-grid { grid-template-columns: 1fr; gap: 24px; } }
+
+/* =========================================================
+   5. 栏目页顶部色带 + 子标签
+   子标签做成"文件夹标签"，选中的那个和下面的内容连在一起
+   ========================================================= */
+.band { position: relative; padding-top: 48px; color: var(--paper); }
+.band.no-tabs { padding-bottom: 40px; }
+.band-title { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(44px, 6vw, 64px); line-height: 1.05; }
+.band-lead { max-width: 36em; margin: 12px 0 28px; font-size: 17px; opacity: .92; }
+.band.no-tabs .band-lead { margin-bottom: 0; }
+.subtabs { display: flex; gap: 6px; overflow-x: auto; }
+.subtabs a { padding: 10px 22px; border-radius: 10px 10px 0 0; color: inherit; text-decoration: none; font-weight: 500; white-space: nowrap; opacity: .85; }
+.subtabs a:hover { opacity: 1; background: rgba(255, 255, 255, .14); }
+.subtabs a[aria-current="page"] { opacity: 1; background: var(--chalk); color: var(--ink); }
+.subtabs a:focus-visible { outline-offset: -3px; }
+
+.band-game {
+  background-color: var(--pixel);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.band-sport { background: repeating-linear-gradient(90deg, var(--pitch) 0 60px, #265F40 60px 120px); }
+.band-journal { /* 记分本：横线纸 */
+  color: var(--ink);
+  background: var(--paper) repeating-linear-gradient(transparent 0 31px, var(--turf-soft) 31px 32px);
+  border-bottom: 1px solid var(--turf);
+}
+.band-journal .subtabs a:hover { background: rgba(22, 32, 27, .06); }
+.band-fav { background: var(--score); color: var(--ink); }
+.band-fav .subtabs a:hover { background: rgba(22, 32, 27, .08); }
+.band-search { background: var(--ink); }
+.band-game :focus-visible, .band-sport :focus-visible, .band-search :focus-visible { outline-color: var(--paper); }
+
+.page { padding-top: 32px; padding-bottom: 72px; }
+.list-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; margin-bottom: 20px; }
+.list-head p { margin: 0; }
+
+/* =========================================================
+   6. 游戏/运动卡片 与 详情页
+   ========================================================= */
+.item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 24px; }
+.item-card { display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--turf); border-radius: var(--r-md); overflow: hidden; }
+.cover { display: grid; place-items: center; aspect-ratio: 16 / 10; overflow: hidden; background: var(--c, var(--pitch)); }
+.cover svg { width: 62%; height: auto; }
+.cover img { width: 100%; height: 100%; object-fit: cover; }
+.item-body { display: flex; flex-direction: column; gap: 6px; flex: 1; padding: 18px 20px 20px; }
+.item-body h3 { margin: 0; font-size: 21px; }
+.item-body h3 a { text-decoration: none; }
+.item-body h3 a:hover { text-decoration: underline; }
+.item-kind { margin: 0; color: var(--muted); font-size: 14px; }
+.item-intro { flex: 1; margin: 0; }
+.item-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
+
+.back { display: inline-block; margin: 28px 0 20px; color: var(--muted); text-decoration: none; }
+.back::before { content: "‹ "; }
+.back:hover { color: var(--ink); text-decoration: underline; }
+.detail { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 40px; align-items: start; }
+.detail .cover { aspect-ratio: 4 / 3; border-radius: var(--r-md); }
+.detail h1 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(48px, 6vw, 76px); line-height: 1.05; }
+.detail-kind { margin: 6px 0 14px; color: var(--muted); }
+.detail .lead { margin: 18px 0 12px; font-size: 19px; font-weight: 500; }
+.story p { max-width: 34em; margin: 0 0 1em; }
+.detail .actions { margin-top: 20px; }
+.related { margin-top: 56px; padding-bottom: 72px; }
+@media (max-width: 820px) { .detail { grid-template-columns: 1fr; gap: 24px; } }
+
+/* =========================================================
+   7. 心得列表 与 文章页
+   左边的色条表示分类：蓝 = 游戏，绿 = 体育
+   ========================================================= */
+.z-game { --zc: var(--pixel); }
+.z-sport { --zc: var(--pitch); }
+.z-life { --zc: var(--score); }
+
+.post-list { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
+.post-row {
+  position: relative; display: flex; align-items: flex-start; gap: 16px;
+  padding: 18px 20px; background: var(--paper);
+  border: 1px solid var(--turf); border-left: 5px solid var(--zc); border-radius: var(--r-sm);
+}
+.post-row:hover { border-color: var(--zc); }
+.post-main { flex: 1; min-width: 0; }
+.post-row h3 { margin: 0; font-size: 19px; }
+.post-row h3 a { text-decoration: none; }
+.post-row h3 a::after { content: ""; position: absolute; inset: 0; } /* 整行都可点击 */
+.post-meta { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.post-excerpt { margin: 6px 0 0; color: #33413A; }
+.post-row .fav { position: relative; z-index: 1; }
+
+.article { max-width: 760px; margin: 0 auto; }
+.zone-tag { display: inline-block; padding: 1px 12px; border-radius: 999px; background: var(--zc); color: var(--paper); font-size: 13px; }
+.article h1 { margin: 10px 0 6px; font-size: clamp(30px, 4vw, 40px); }
+.article-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 32px; color: var(--muted); font-size: 14px; }
+.article-actions { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--turf); }
+
+/* Markdown 渲染后的正文 */
+.md-body { line-height: 1.85; overflow-wrap: anywhere; }
+.md-body > :first-child { margin-top: 0; }
+.md-body h1, .md-body h2, .md-body h3, .md-body h4, .md-body h5, .md-body h6 { margin: 1.6em 0 .6em; line-height: 1.35; }
+.md-body h1 { font-size: 28px; }
+.md-body h2 { font-size: 23px; }
+.md-body h3 { font-size: 19px; }
+.md-body h4, .md-body h5, .md-body h6 { font-size: 16px; }
+.md-body p, .md-body ul, .md-body ol, .md-body blockquote, .md-body pre, .md-body .table-wrap { margin: 0 0 1em; }
+.md-body ul, .md-body ol { padding-left: 1.5em; }
+.md-body li.task { list-style: none; margin-left: -1.5em; }
+.md-body li.task input { margin-right: 6px; }
+.md-body blockquote { padding: 10px 16px; border-left: 4px solid var(--score); border-radius: 0 6px 6px 0; background: #FFF7DA; color: #3B3520; }
+.md-body blockquote > :last-child { margin-bottom: 0; }
+.md-body code { padding: 2px 6px; border-radius: 4px; background: var(--turf-soft); font-family: var(--font-code); font-size: .9em; }
+.md-body pre { padding: 16px 18px; border-radius: 8px; background: var(--ink); color: #E8EEE4; overflow-x: auto; line-height: 1.6; }
+.md-body pre code { padding: 0; background: none; color: inherit; }
+.md-body hr { margin: 2em 0; border: 0; border-top: 2px dashed var(--turf); }
+.md-body a { color: var(--pixel); }
+.md-body .table-wrap { overflow-x: auto; }
+.md-body table { min-width: 50%; border-collapse: collapse; }
+.md-body th, .md-body td { padding: 6px 14px; border: 1px solid var(--turf); }
+.md-body th { background: var(--turf-soft); }
+.md-body img, .md-body video { max-height: 520px; margin: 8px 0; border-radius: 8px; }
+.md-body audio { width: 100%; margin: 8px 0; }
+.md-media { display: block; }
+.md-media.missing { display: inline-block; padding: 6px 12px; border: 1px dashed var(--turf); border-radius: 6px; color: var(--muted); font-size: 14px; }
+
+/* =========================================================
+   8. 心得编辑器
+   ========================================================= */
+.editor { background: var(--paper); border: 1px solid var(--turf); border-radius: var(--r-md); overflow: hidden; }
+.editor-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 16px 20px; border-bottom: 1px solid var(--turf); }
+.title-input { flex: 1; min-width: 220px; padding: 4px 0; border: 0; background: transparent; font-size: 24px; font-weight: 700; }
+.title-input:focus-visible { outline: none; box-shadow: 0 2px 0 var(--focus); border-radius: 0; }
+
+/* 分段选择器（单选按钮做成的开关） */
+.seg { display: inline-flex; gap: 2px; margin: 0; padding: 3px; border: 1px solid var(--turf); border-radius: 8px; }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; }
+.seg span { display: block; padding: 4px 14px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+.seg input:checked + span { background: var(--ink); color: var(--paper); }
+.seg input:focus-visible + span { outline: 3px solid var(--focus); }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; border-bottom: 1px solid var(--turf); background: var(--chalk); }
+.toolbar button { height: 34px; min-width: 34px; padding: 0 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; font-size: 14px; cursor: pointer; }
+.toolbar button:hover { background: var(--paper); border-color: var(--turf); }
+.toolbar .b { font-weight: 700; }
+.toolbar .i { font-style: italic; }
+.toolbar .s { text-decoration: line-through; }
+.toolbar .sep { width: 1px; margin: 4px 6px; background: var(--turf); }
+.toolbar .media { margin-left: auto; background: var(--score); font-weight: 700; }
+.toolbar .media:hover { background: var(--score); border-color: var(--ink); }
+
+.editor-switch { display: none; gap: 4px; padding: 8px 12px; border-bottom: 1px solid var(--turf); }
+.editor-switch button { padding: 4px 16px; border: 1px solid var(--turf); border-radius: 999px; background: var(--paper); cursor: pointer; }
+.editor-switch button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+.panes { display: grid; grid-template-columns: 1fr 1fr; }
+.edit-pane { display: block; border-right: 1px solid var(--turf); }
+.edit-pane textarea { display: block; width: 100%; min-height: 520px; height: 100%; padding: 20px; border: 0; resize: vertical; background: var(--paper); font-family: var(--font-code); font-size: 15px; line-height: 1.75; }
+.edit-pane textarea:focus-visible { outline-offset: -3px; }
+.preview { max-height: 72vh; padding: 20px 24px; overflow: auto; }
+.editor-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--turf); }
+.editor-foot .count { margin-right: auto; color: var(--muted); font-size: 14px; }
+@media (max-width: 820px) {
+  .editor-switch { display: flex; }
+  .panes { grid-template-columns: 1fr; }
+  .edit-pane { border-right: 0; }
+  .edit-pane textarea { min-height: 380px; }
+  .preview { max-height: none; min-height: 380px; }
+  .panes[data-show="edit"] .preview { display: none; }
+  .panes[data-show="preview"] .edit-pane { display: none; }
+  .toolbar .media { margin-left: 0; }
+}
+
+/* =========================================================
+   9. 随手记（时间线）
+   ========================================================= */
+.composer { margin-bottom: 32px; padding: 16px; background: var(--paper); border: 1px solid var(--turf); border-radius: var(--r-md); }
+.composer textarea { display: block; width: 100%; min-height: 88px; padding: 4px; border: 0; resize: vertical; background: transparent; font-size: 17px; line-height: 1.7; }
+.composer-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--turf-soft); }
+.composer-row .hint { margin-left: auto; }
+.day { margin: 28px 0 10px; color: var(--muted); font-size: 15px; }
+.notes { list-style: none; margin: 0 0 0 6px; padding: 0; border-left: 2px solid var(--turf); }
+.note { position: relative; padding: 2px 0 20px 24px; }
+.note::before { content: ""; position: absolute; left: -8px; top: 9px; width: 14px; height: 14px; border-radius: 50%; background: var(--paper); border: 3px solid var(--zc); }
+.note-head { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
+.note-head .btn { margin-left: auto; }
+.chip { padding: 0 10px; border-radius: 999px; background: var(--zc); color: var(--paper); font-size: 13px; }
+.z-life .chip { color: var(--ink); }
+.note-text { max-width: 40em; margin: 4px 0 0; white-space: pre-wrap; }
+
+/* =========================================================
+   10. 媒体库
+   ========================================================= */
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 40px 24px; text-align: center; cursor: pointer;
+  background: var(--paper); border: 2px dashed var(--pitch); border-radius: var(--r-md);
+  transition: background .15s;
+}
+.dropzone:hover, .dropzone.is-over { background: #E6F0E2; }
+.dropzone.is-over { border-style: solid; }
+.dropzone:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+.dropzone strong { font-size: 19px; }
+.dropzone span { color: var(--muted); font-size: 14px; }
+
+.media-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 28px 0 16px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips a { padding: 4px 14px; border: 1px solid var(--turf); border-radius: 999px; background: var(--paper); font-size: 14px; text-decoration: none; }
+.chips a:hover { border-color: var(--ink); }
+.chips a[aria-current="page"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.usage { margin-left: auto; color: var(--muted); font-size: 13px; }
+
+.media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; list-style: none; margin: 0; padding: 0; }
+.tile { display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--turf); border-radius: var(--r-md); overflow: hidden; }
+.tile-face { width: 100%; aspect-ratio: 4 / 3; }
+.tile-view { display: block; padding: 0; border: 0; background: var(--ink); cursor: zoom-in; }
+.tile-view img { width: 100%; height: 100%; object-fit: cover; }
+.tile-view:focus-visible { outline-offset: -3px; }
+video.tile-face { background: #000; object-fit: contain; }
+.audio-face { display: grid; place-items: center; background: repeating-linear-gradient(90deg, var(--pitch) 0 24px, #265F40 24px 48px); color: var(--paper); font-family: var(--font-display); font-size: 44px; }
+.tile audio { width: 100%; height: 40px; }
+.tile-info { display: flex; flex-direction: column; flex: 1; padding: 12px 14px 14px; }
+.tile-name { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.tile-meta { margin: 0; color: var(--muted); font-size: 13px; }
+.tile-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+
+/* =========================================================
+   11. 收藏页、搜索结果、需要登录的提示
+   ========================================================= */
+.fav-list, .result-list { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
+.fav-row, .result {
+  display: flex; align-items: center; gap: 16px; padding: 14px 18px;
+  background: var(--paper); border: 1px solid var(--turf); border-left: 5px solid var(--zc, var(--turf)); border-radius: var(--r-sm);
+}
+.z-media { --zc: var(--ink); }
+.fav-thumb { flex: none; width: 64px; height: 48px; border-radius: 4px; object-fit: cover; }
+.fav-main, .result-main { flex: 1; min-width: 0; }
+.fav-main a, .result-main a { font-weight: 700; font-size: 17px; text-decoration: none; }
+.fav-main a:hover, .result-main a:hover { text-decoration: underline; }
+.fav-main p, .result-main p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.fav-row.missing { opacity: .7; }
+.result-group { margin-bottom: 40px; }
+.result-group h2 { margin: 0 0 14px; font-size: 20px; }
+.result-group h2 small { margin-left: 8px; color: var(--muted); font-weight: 400; font-size: 15px; }
+mark { padding: 0 2px; border-radius: 2px; background: #FFE38A; color: inherit; }
+
+.gate { max-width: 520px; margin: 32px auto 0; padding: 40px 32px; text-align: center; background: var(--paper); border: 1px solid var(--turf); border-radius: var(--r-md); }
+.gate h2 { margin: 0 0 8px; }
+.gate p { margin: 0 0 20px; }
+.gate .actions { justify-content: center; margin-bottom: 16px; }
+
+/* =========================================================
+   12. 弹窗、提示条、页脚
+   ========================================================= */
+dialog { width: min(440px, calc(100vw - 32px)); padding: 0; border: 0; border-radius: var(--r-lg); background: var(--paper); color: var(--ink); box-shadow: 0 30px 80px rgba(10, 30, 20, .35); }
+dialog::backdrop { background: rgba(22, 32, 27, .55); }
+dialog.wide { width: min(760px, calc(100vw - 32px)); }
+.dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 24px 0; }
+.dlg-head h2 { margin: 0; font-size: 20px; }
+.dlg-note { margin: 8px 24px 0; padding: 8px 12px; border-radius: var(--r-sm); background: #FFF7DA; font-size: 14px; }
+.dlg-body { padding: 16px 24px 24px; }
+.auth-tabs { display: flex; gap: 20px; margin: 12px 24px 0; border-bottom: 1px solid var(--turf); }
+.auth-tabs button { padding: 8px 0; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; background: none; color: var(--muted); font-weight: 500; cursor: pointer; }
+.auth-tabs button[aria-selected="true"] { border-bottom-color: var(--pitch); color: var(--ink); }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.field span { font-size: 14px; font-weight: 500; }
+.field input { height: 44px; padding: 0 14px; border: 1px solid var(--turf); border-radius: 8px; background: var(--chalk); }
+.form-error { min-height: 1.5em; margin: 0 0 10px; color: var(--danger); font-size: 14px; }
+.dlg-body .btn.primary { width: 100%; height: 44px; }
+.dlg-body .hint { margin: 12px 0 0; }
+
+.picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; max-height: 56vh; margin-top: 16px; overflow: auto; }
+.pick { display: flex; flex-direction: column; padding: 0; border: 1px solid var(--turf); border-radius: var(--r-sm); background: var(--paper); overflow: hidden; cursor: pointer; text-align: left; }
+.pick:hover { border-color: var(--ink); }
+.pick img, .pick-type { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.pick-type { display: grid; place-items: center; background: var(--pitch); color: var(--paper); font-family: var(--font-display); font-size: 28px; }
+.pick-name { padding: 6px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+
+.lightbox { width: min(1000px, calc(100vw - 32px)); background: var(--ink); color: var(--paper); }
+.lightbox img { max-height: 76vh; margin: 0 auto; object-fit: contain; }
+.lightbox .dlg-head { padding: 12px 16px; }
+.lightbox .dlg-head p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lightbox .btn { background: transparent; color: var(--paper); border-color: rgba(255, 255, 255, .3); }
+
+#toast { position: fixed; z-index: 100; left: 50%; bottom: 24px; max-width: calc(100vw - 32px); padding: 10px 22px; border-radius: 999px; background: var(--ink); color: var(--paper); opacity: 0; pointer-events: none; transform: translate(-50%, 16px); transition: opacity .2s, transform .2s; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.site-foot { padding: 28px 0 40px; border-top: 1px solid var(--turf); color: var(--muted); font-size: 14px; }
+.site-foot p { margin: 0 0 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .center-circle .ring { stroke-dashoffset: 0; }
+}
+</style>
+</head>
+
+<body>
+<a class="skip" href="#view">跳到正文</a>
+
+<!-- ============ 顶栏：站名、主导航、搜索、登录 ============ -->
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#home" aria-label="两个半场首页"><span class="a">两个</span><span class="b">半场</span></a>
+    <nav class="mainnav" aria-label="主导航">
+      <a href="#home" data-nav="home">首页</a>
+      <a href="#games" data-nav="games">游戏分区</a>
+      <a href="#sports" data-nav="sports">体育分区</a>
+      <a href="#journal" data-nav="journal">我的记录</a>
+      <a href="#favorites" data-nav="favorites">收藏</a>
+    </nav>
+    <form class="search" id="searchForm" role="search">
+      <input id="searchInput" type="search" placeholder="搜索游戏、运动、心得" aria-label="搜索">
+    </form>
+    <div id="userArea"></div>
+  </div>
+</header>
+
+<!-- ============ 主体：每个页面的内容由 JavaScript 填进来 ============ -->
+<main id="view" tabindex="-1"></main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <p>两个半场，王建忠的个人生活记录。实用软件实践课程设计，2026 年。</p>
+    <p>账号、心得和媒体文件都保存在本机浏览器的 IndexedDB 里，清除浏览器数据会一起删除。</p>
+  </div>
+</footer>
+
+<!-- ============ 弹窗：登录 / 注册 ============ -->
+<dialog id="authDialog" aria-labelledby="authTitle">
+  <div class="dlg-head">
+    <h2 id="authTitle">欢迎来到两个半场</h2>
+    <button type="button" class="btn ghost small" data-action="close-dialog">关闭</button>
+  </div>
+  <p class="dlg-note" id="authNote" hidden></p>
+  <div class="auth-tabs" role="tablist">
+    <button type="button" role="tab" id="tabLogin" aria-controls="loginForm" data-action="auth-tab" data-tab="login" aria-selected="true">登录</button>
+    <button type="button" role="tab" id="tabRegister" aria-controls="registerForm" data-action="auth-tab" data-tab="register" aria-selected="false">注册</button>
+  </div>
+  <form class="dlg-body" id="loginForm" role="tabpanel" aria-labelledby="tabLogin">
+    <label class="field"><span>用户名</span><input name="username" autocomplete="username" required></label>
+    <label class="field"><span>密码</span><input name="password" type="password" autocomplete="current-password" required></label>
+    <p class="form-error" role="alert"></p>
+    <button class="btn primary" type="submit">登录</button>
+    <p class="hint">想先看看效果，可以用演示账号 demo，密码 123456。</p>
+  </form>
+  <form class="dlg-body" id="registerForm" role="tabpanel" aria-labelledby="tabRegister" hidden>
+    <label class="field"><span>用户名</span><input name="username" autocomplete="username" required></label>
+    <label class="field"><span>密码</span><input name="password" type="password" autocomplete="new-password" required></label>
+    <label class="field"><span>再输入一次密码</span><input name="confirm" type="password" autocomplete="new-password" required></label>
+    <p class="form-error" role="alert"></p>
+    <button class="btn primary" type="submit">注册并登录</button>
+    <p class="hint">用户名 2 到 16 个字符，可以用中文、字母、数字和下划线。密码至少 6 位。</p>
+  </form>
+</dialog>
+
+<!-- ============ 弹窗：修改密码 ============ -->
+<dialog id="passwordDialog" aria-labelledby="pwdTitle">
+  <div class="dlg-head">
+    <h2 id="pwdTitle">修改密码</h2>
+    <button type="button" class="btn ghost small" data-action="close-dialog">关闭</button>
+  </div>
+  <form class="dlg-body" id="passwordForm">
+    <label class="field"><span>现在的密码</span><input name="old" type="password" autocomplete="current-password" required></label>
+    <label class="field"><span>新密码</span><input name="password" type="password" autocomplete="new-password" required></label>
+    <label class="field"><span>再输入一次新密码</span><input name="confirm" type="password" autocomplete="new-password" required></label>
+    <p class="form-error" role="alert"></p>
+    <button class="btn primary" type="submit">修改密码</button>
+  </form>
+</dialog>
+
+<!-- ============ 弹窗：在心得里插入媒体 ============ -->
+<dialog id="pickerDialog" class="wide" aria-labelledby="pickerTitle">
+  <div class="dlg-head">
+    <h2 id="pickerTitle">插入图片、视频或音频</h2>
+    <button type="button" class="btn ghost small" data-action="close-dialog">关闭</button>
+  </div>
+  <div class="dlg-body">
+    <label class="btn small">上传并插入新文件<input type="file" id="pickerUpload" class="sr" multiple accept="image/*,video/*,audio/*"></label>
+    <p class="hint">从媒体库里选一个文件。插入后，看这篇心得的人都能看到它。</p>
+    <div class="picker-grid" id="pickerGrid"></div>
+  </div>
+</dialog>
+
+<!-- ============ 弹窗：看大图 ============ -->
+<dialog id="lightbox" class="lightbox" aria-label="查看图片">
+  <div class="dlg-head">
+    <p id="lightboxCaption"></p>
+    <button type="button" class="btn small" data-action="close-dialog">关闭</button>
+  </div>
+  <img id="lightboxImg" alt="">
+</dialog>
+
+<!-- 更换封面用的隐藏文件选择框 -->
+<input type="file" id="coverInput" class="sr" accept="image/*" tabindex="-1" aria-hidden="true">
+
+<!-- 操作提示条，例如"已收藏" -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* =================================================================
+ * 0. 网站内容
+ *    想换成自己的游戏和运动，改这里就行
+ * ================================================================= */
+const SITE = {
+  name: '两个半场',
+  tagline: '一半在屏幕里，一半在操场上。这里记着我课余时间玩过的游戏、做过的运动，和从中想明白的事。',
+};
+
+// zone：game = 游戏分区，sport = 体育分区
+// art：卡片上默认画的小图（见下面的 ART），登录后可以换成自己的照片
+const ITEMS = [
+  { id: 'g-mc', zone: 'game', name: '我的世界', kind: '沙盒建造', since: '从初中玩到现在', color: '#2F5FD0', art: 'blocks',
+    tags: ['联机', '建造'],
+    intro: '一个由方块组成的世界。可以挖矿、种地、盖房子，也能和朋友一起联机。',
+    story: ['大一的时候，我和室友开了一个联机存档，约好每周日晚上一起上线。我们从一间木屋开始，后来盖了图书馆、农场和一条横跨河面的铁路。',
+            '它教会我的是做计划：盖大建筑之前先画草图、算材料，比一上来就动手省事得多。'] },
+  { id: 'g-chess', zone: 'game', name: '中国象棋', kind: '棋类', since: '小学跟爷爷学会', color: '#244BA6', art: 'chess',
+    tags: ['策略', '棋类'],
+    intro: '楚河汉界两边各十六个棋子，比的是谁算得更远。',
+    story: ['象棋是爷爷教我的，第一盘他让了我一个车。现在回家还会陪他下几盘，平时在手机上和网友对弈。',
+            '下棋让我习惯在落子前多想一步：对方会怎么应，我还有没有退路。'] },
+  { id: 'g-moba', zone: 'game', name: '王者荣耀', kind: '多人竞技', since: '高中毕业那年开始', color: '#3A6BE0', art: 'moba',
+    tags: ['团队', '竞技'],
+    intro: '五个人一队，沿着三条路推进，先推掉对方水晶的一方获胜。',
+    story: ['和高中同学开黑是我们保持联系的方式。大家分在不同城市上大学，周末晚上还能凑齐一队。',
+            '输多了才明白，一局游戏里沟通比操作更重要。'] },
+  { id: 'g-duo', zone: 'game', name: '双人成行', kind: '双人合作冒险', since: '去年寒假通关', color: '#1F3F8C', art: 'duo',
+    tags: ['合作', '剧情'],
+    intro: '必须两个人一起玩的冒险游戏，每一关的玩法都不一样。',
+    story: ['寒假和表弟一起通关，用了大概十五个小时。很多关卡需要两个人配合，一个人搭桥，另一个人才能过去。',
+            '玩到后面，我们会先商量好分工再开始，失败的次数明显少了。'] },
+
+  { id: 's-bb', zone: 'sport', name: '篮球', kind: '球类', since: '每周三、周六下午', color: '#22573A', art: 'basketball',
+    tags: ['团队', '球类'],
+    intro: '学校东区球场是我最常去的地方，打得最多的是半场三对三。',
+    story: ['刚进大学时我投篮很不稳，后来每次打球前先练五十个定点投篮，一个学期下来命中率高了不少。',
+            '打半场需要不停跑位和换防，打完一场，整个人都轻松了。'] },
+  { id: 's-bm', zone: 'sport', name: '羽毛球', kind: '球类', since: '加入了校羽毛球协会', color: '#2C6A47', art: 'badminton',
+    tags: ['协会', '球类'],
+    intro: '室内运动，下雨天也能打。协会每周二晚上有训练。',
+    story: ['加入协会后才知道，正确的握拍和步法比力气更重要。现在正在练反手高远球。',
+            '和不同的人打球，也认识了很多其他学院的朋友。'] },
+  { id: 's-run', zone: 'sport', name: '跑步', kind: '耐力', since: '大二开始坚持', color: '#1B4A30', art: 'running',
+    tags: ['耐力', '一个人'],
+    intro: '操场一圈四百米，晚上九点以后人最少。',
+    story: ['一开始跑两圈就喘，后来按照“跑一分钟、走一分钟”的方法慢慢加量，现在能连续跑五公里。',
+            '跑步时不用说话，是我一天里整理思路的时间。'] },
+  { id: 's-swim', zone: 'sport', name: '游泳', kind: '水上运动', since: '暑假学会自由泳', color: '#2F7350', art: 'swim',
+    tags: ['夏天', '技巧'],
+    intro: '学校游泳馆夏天开放，一次一个半小时。',
+    story: ['小时候只会狗刨，今年暑假报了培训班，学会了换气和自由泳。',
+            '游泳对膝盖友好。跑步跑累的时候，我就换成游泳。'] },
+];
+
+// 两个分区的文字和子标签
+const ZONES = {
+  game: { key: 'games', name: '游戏分区', noteName: '游戏心得', bandClass: 'band-game',
+          lead: '一半的课余时间在屏幕里。这里是我常玩的游戏，和玩完之后想明白的事。',
+          tabs: [['intro', '常玩的游戏'], ['notes', '游戏心得']] },
+  sport: { key: 'sports', name: '体育分区', noteName: '体育心得', bandClass: 'band-sport',
+           lead: '另一半在操场上。这里是我常做的运动，和每次练完的记录。',
+           tabs: [['intro', '常做的运动'], ['notes', '体育心得']] },
+};
+
+const NOTE_TAGS = { life: '日常', game: '游戏', sport: '体育' };
+const TYPE_NAME = { image: '图片', video: '视频', audio: '音频' };
+const MAX_FILE_SIZE = 200 * 1024 * 1024; // 单个文件最大 200 MB
+
+// 卡片默认配图：用简单的线条画出每个游戏或运动的特征
+const C = '#F1F4EF', Y = '#F2B705';
+const ART = {
+  blocks: `<svg viewBox="0 0 160 100" aria-hidden="true"><g fill="none" stroke="${C}" stroke-width="3">
+    <rect x="40" y="62" width="20" height="20"/><rect x="60" y="62" width="20" height="20"/><rect x="80" y="62" width="20" height="20"/><rect x="100" y="62" width="20" height="20"/>
+    <rect x="60" y="42" width="20" height="20"/><rect x="80" y="42" width="20" height="20"/><rect x="80" y="22" width="20" height="20"/></g>
+    <rect x="101.5" y="43.5" width="17" height="17" fill="${Y}"/></svg>`,
+  chess: `<svg viewBox="0 0 160 100" aria-hidden="true"><g fill="none" stroke="${C}"><circle cx="80" cy="50" r="34" stroke-width="3"/><circle cx="80" cy="50" r="27" stroke-width="1.5"/></g>
+    <text x="80" y="62" text-anchor="middle" font-size="34" font-weight="700" fill="${Y}" font-family="serif">帅</text></svg>`,
+  moba: `<svg viewBox="0 0 160 100" aria-hidden="true"><g fill="none" stroke="${C}" stroke-width="3"><rect x="44" y="12" width="76" height="76" rx="4"/><path d="M50 82 L114 18"/></g>
+    <path d="M46 14 L118 86" stroke="${C}" stroke-width="1.5" stroke-dasharray="4 5"/>
+    <rect x="44" y="72" width="16" height="16" fill="${Y}"/><rect x="104" y="12" width="16" height="16" fill="${C}"/></svg>`,
+  duo: `<svg viewBox="0 0 160 100" aria-hidden="true"><g fill="none" stroke-width="3">
+    <circle cx="62" cy="32" r="11" stroke="${C}"/><path d="M44 86 V68 a18 18 0 0 1 36 0 V86" stroke="${C}"/>
+    <circle cx="98" cy="32" r="11" stroke="${Y}"/><path d="M80 86 V68 a18 18 0 0 1 36 0 V86" stroke="${Y}"/></g></svg>`,
+  basketball: `<svg viewBox="0 0 160 100" aria-hidden="true"><g fill="none" stroke="${C}" stroke-width="3"><circle cx="80" cy="50" r="36"/><path d="M80 14 V86 M44 50 H116"/>
+    <path d="M55 24 C70 38 70 62 55 76"/><path d="M105 24 C90 38 90 62 105 76"/></g></svg>`,
+  badminton: `<svg viewBox="0 0 160 100" aria-hidden="true"><g fill="none" stroke="${C}" stroke-width="3"><path d="M72 70 L54 20 M88 70 L106 20 M77 70 L72 18 M83 70 L88 18"/>
+    <path d="M54 20 Q80 10 106 20"/><path d="M61 40 Q80 34 99 40"/></g><circle cx="80" cy="77" r="10" fill="${Y}"/></svg>`,
+  running: `<svg viewBox="0 0 160 100" aria-hidden="true"><g fill="none" stroke="${C}" stroke-width="3"><rect x="20" y="16" width="120" height="68" rx="34"/><rect x="32" y="28" width="96" height="44" rx="22"/></g>
+    <rect x="44" y="40" width="72" height="20" rx="10" fill="none" stroke="${C}" stroke-width="1.5"/><path d="M98 16 V28" stroke="${Y}" stroke-width="5"/></svg>`,
+  swim: `<svg viewBox="0 0 160 100" aria-hidden="true"><g fill="none" stroke="${C}" stroke-width="3" stroke-linecap="round">
+    <path d="M22 50 q14 -10 28 0 t28 0 t28 0 t28 0"/><path d="M22 68 q14 -10 28 0 t28 0 t28 0 t28 0"/><path d="M22 86 q14 -10 28 0 t28 0 t28 0 t28 0"/></g>
+    <circle cx="72" cy="30" r="9" fill="${Y}"/><path d="M84 34 q14 -6 26 2" fill="none" stroke="${C}" stroke-width="3" stroke-linecap="round"/></svg>`,
+};
+
+/* =================================================================
+ * 1. 小工具函数
+ * ================================================================= */
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+// 把用户输入的文字转成安全的 HTML，防止有人在标题里写 <script>
+function esc(value) {
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(value ?? '').replace(/[&<>"']/g, ch => map[ch]);
+}
+
+const pad = n => String(n).padStart(2, '0');
+function fmtDate(ts) { const d = new Date(ts); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; }
+function fmtTime(ts) { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function fmtDay(ts) { const d = new Date(ts); return `${d.getMonth() + 1}月${d.getDate()}日 星期${'日一二三四五六'[d.getDay()]}`; }
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 ** 2) return Math.round(bytes / 1024) + ' KB';
+  if (bytes < 1024 ** 3) return (bytes / 1024 ** 2).toFixed(1) + ' MB';
+  return (bytes / 1024 ** 3).toFixed(2) + ' GB';
+}
+const byNewest = (a, b) => b.createdAt - a.createdAt;
+
+// 底部提示条
+let toastTimer;
+function toast(message) {
+  const el = $('#toast');
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// 连续触发时只执行最后一次（用于实时预览、自动保存草稿）
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+}
+
+// localStorage 只用来存未发布的草稿；隐私模式下可能不可用，所以包一层 try
+const local = {
+  get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+  set(key, value) { try { localStorage.setItem(key, value); } catch { /* 忽略 */ } },
+  remove(key) { try { localStorage.removeItem(key); } catch { /* 忽略 */ } },
+};
+
+// 去掉 Markdown 符号，得到纯文字（用于摘要和搜索）
+function plainText(md) {
+  return md
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/gm, ' ') // 表格分隔行和分割线
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[[ xX]\]/g, ' ')
+    .replace(/[#>*_`~|]/g, ' ')
+    .replace(/^\s*-+\s*/gm, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+// 截取关键词附近的一段文字
+function snippet(text, q, length = 90) {
+  const i = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
+  const start = Math.max(0, i - 24);
+  return (start > 0 ? '…' : '') + text.slice(start, start + length) + (start + length < text.length ? '…' : '');
+}
+// 把关键词用 <mark> 标出来
+function highlight(text, q) {
+  const safe = esc(text);
+  if (!q) return safe;
+  const pattern = esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return safe.replace(new RegExp(pattern, 'gi'), m => `<mark>${m}</mark>`);
+}
+
+/* =================================================================
+ * 2. IndexedDB 数据库
+ *    把原生的回调接口包装成 Promise，后面就能用 await 了
+ *
+ *    数据表（object store）：
+ *      users      账号：用户名、盐、密码哈希
+ *      meta       杂项：当前登录状态（session）
+ *      posts      心得（Markdown），所有人可见
+ *      notes      随手记，只有自己可见
+ *      media      上传的图片、视频、音频（直接存 Blob）
+ *      favorites  收藏
+ *      covers     游戏/运动卡片的自定义封面
+ * ================================================================= */
+const DB = {
+  name: 'two-halves',
+  version: 1,
+  db: null,
+
+  open() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(this.name, this.version);
+      // 第一次打开（或版本升级）时建表
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        db.createObjectStore('users', { keyPath: 'username' });
+        db.createObjectStore('meta', { keyPath: 'key' });
+        db.createObjectStore('posts', { keyPath: 'id', autoIncrement: true }).createIndex('zone', 'zone');
+        db.createObjectStore('notes', { keyPath: 'id', autoIncrement: true }).createIndex('owner', 'owner');
+        db.createObjectStore('media', { keyPath: 'id', autoIncrement: true }).createIndex('owner', 'owner');
+        const fav = db.createObjectStore('favorites', { keyPath: 'id', autoIncrement: true });
+        fav.createIndex('owner', 'owner');
+        fav.createIndex('unique', ['owner', 'kind', 'ref'], { unique: true }); // 同一个人不能重复收藏同一项
+        db.createObjectStore('covers', { keyPath: 'itemId' });
+      };
+      req.onsuccess = () => { this.db = req.result; resolve(this.db); };
+      req.onerror = () => reject(req.error);
+    });
+  },
+
+  // 通用方法：开一个事务，执行 fn，事务完成后返回结果
+  run(storeName, mode, fn) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(storeName, mode);
+      const req = fn(tx.objectStore(storeName));
+      tx.oncomplete = () => resolve(req ? req.result : undefined);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  },
+
+  get(store, key)            { return this.run(store, 'readonly', s => s.get(key)); },
+  getAll(store)              { return this.run(store, 'readonly', s => s.getAll()); },
+  getByIndex(store, i, val)  { return this.run(store, 'readonly', s => s.index(i).getAll(val)); },
+  count(store)               { return this.run(store, 'readonly', s => s.count()); },
+  add(store, value)          { return this.run(store, 'readwrite', s => s.add(value)); },  // 返回新记录的 id
+  put(store, value)          { return this.run(store, 'readwrite', s => s.put(value)); },
+  delete(store, key)         { return this.run(store, 'readwrite', s => s.delete(key)); },
+  findFav(owner, kind, ref)  { return this.run('favorites', 'readonly', s => s.index('unique').get([owner, kind, String(ref)])); },
+};
+
+/* =================================================================
+ * 3. 账号系统
+ *    密码不直接保存，而是保存"随机盐 + 密码"的 SHA-256 哈希
+ * ================================================================= */
+const USERNAME_RULE = /^[A-Za-z0-9_一-龥]{2,16}$/;
+
+const Auth = {
+  user: null, // 当前登录的用户名，没登录时是 null
+
+  newSalt() {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+  },
+
+  async hash(password, salt) {
+    const data = new TextEncoder().encode(salt + ':' + password);
+    if (window.crypto && crypto.subtle) {
+      const buffer = await crypto.subtle.digest('SHA-256', data);
+      return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    // 极少数环境没有 crypto.subtle，退回一个简单哈希（仅用于演示）
+    let h = 0x811c9dc5;
+    for (const b of data) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0; }
+    return 'fnv-' + h.toString(16);
+  },
+
+  async register(username, password) {
+    if (!USERNAME_RULE.test(username)) throw new Error('用户名需要 2 到 16 个字符，可以用中文、字母、数字和下划线。');
+    if (password.length < 6) throw new Error('密码至少 6 位。');
+    if (await DB.get('users', username)) throw new Error('这个用户名已经被注册了，换一个试试。');
+    const salt = this.newSalt();
+    await DB.add('users', { username, salt, hash: await this.hash(password, salt), createdAt: Date.now() });
+    await this.startSession(username);
+  },
+
+  async login(username, password) {
+    const user = await DB.get('users', username);
+    if (!user || (await this.hash(password, user.salt)) !== user.hash) {
+      throw new Error('用户名或密码不对，请检查后再试。');
+    }
+    await this.startSession(username);
+  },
+
+  async changePassword(oldPassword, newPassword) {
+    const user = await DB.get('users', this.user);
+    if ((await this.hash(oldPassword, user.salt)) !== user.hash) throw new Error('现在的密码不对。');
+    if (newPassword.length < 6) throw new Error('新密码至少 6 位。');
+    user.salt = this.newSalt();
+    user.hash = await this.hash(newPassword, user.salt);
+    await DB.put('users', user);
+  },
+
+  // 登录状态也存在 IndexedDB 里，刷新页面后依然保持登录
+  async startSession(username) {
+    this.user = username;
+    await DB.put('meta', { key: 'session', username, at: Date.now() });
+  },
+  async logout() {
+    this.user = null;
+    await DB.delete('meta', 'session');
+  },
+  async restore() {
+    const session = await DB.get('meta', 'session');
+    if (session && await DB.get('users', session.username)) this.user = session.username;
+  },
+};
+
+/* =================================================================
+ * 4. 第一次打开时写入演示数据
+ * ================================================================= */
+const SAMPLE_POSTS = [
+  { zone: 'game', daysAgo: 12, title: '我们在存档里盖了一座图书馆', content:
+`## 起因
+
+室友说想在服务器里放一个**能存书的地方**，于是我们决定在《我的世界》里盖一座图书馆。
+
+## 分工
+
+- 我负责画图纸、统计材料
+- 室友负责采石头和砍树
+- 另一位室友负责内部装修
+
+> 先画图再动手，最后只返工了一次。
+
+## 用掉的材料
+
+| 材料 | 数量 |
+| --- | ---: |
+| 石砖 | 1200 块 |
+| 橡木木板 | 640 块 |
+| 书架 | 96 个 |
+
+下一步打算在图书馆旁边修一条铁路。` },
+  { zone: 'sport', daysAgo: 6, title: '第一次连续跑完 5 公里', content:
+`今天晚上九点半去操场，原本只打算跑三公里，状态不错就继续跑了下去。
+
+## 每公里用时
+
+| 公里 | 用时 |
+| :---: | :---: |
+| 1 | 6分02秒 |
+| 2 | 6分10秒 |
+| 3 | 6分15秒 |
+| 4 | 6分21秒 |
+| 5 | 5分58秒 |
+
+## 这次做对的事
+
+1. 前两公里压着速度跑
+2. 跑前一小时没有吃东西
+3. 最后一公里才开始加速
+
+下次的目标：*30 分钟以内*。` },
+  { zone: 'sport', daysAgo: 3, title: '羽毛球协会第六周训练', content:
+`本周练习反手高远球。教练说我的问题是**转身不够**，球总是打不到底线。
+
+## 训练清单
+
+- [x] 原地挥拍 100 次
+- [x] 多球练习 3 组
+- [ ] 对打时主动用反手
+
+记下教练的一句话：
+
+> 发力来自转体，不是手腕。` },
+  { zone: 'game', daysAgo: 1, title: '和爷爷下的一盘中国象棋残局', content:
+`国庆回家，爷爷摆了一个残局让我解：红方车马兵，对黑方车士象全。
+
+我想了二十分钟，第一步走的是 \`兵五进一\`，结果被爷爷一步化解。
+
+正确的思路是**先用马控制将门**，再让车下底线。
+
+下棋和写代码有点像：先想清楚每一步之后对方会怎么应，再落子。` },
+];
+const SAMPLE_NOTES = [
+  { tag: 'sport', hoursAgo: 2, text: '下午打了一场半场，三对三赢了两局。' },
+  { tag: 'game', hoursAgo: 26, text: '晚上和室友上线，把铁路修到了村庄。' },
+  { tag: 'life', hoursAgo: 75, text: '在图书馆借了一本讲跑步姿势的书。\n第一章就说：先学会慢跑。' },
+];
+
+async function seedIfEmpty() {
+  if ((await DB.count('users')) > 0) return;
+  const salt = Auth.newSalt();
+  await DB.add('users', { username: 'demo', salt, hash: await Auth.hash('123456', salt), createdAt: Date.now() });
+  const now = Date.now(), day = 86400000, hour = 3600000;
+  for (const p of SAMPLE_POSTS) {
+    const t = now - p.daysAgo * day;
+    await DB.add('posts', { zone: p.zone, title: p.title, content: p.content, author: 'demo', createdAt: t, updatedAt: t });
+  }
+  for (const n of SAMPLE_NOTES) {
+    await DB.add('notes', { owner: 'demo', tag: n.tag, text: n.text, createdAt: now - n.hoursAgo * hour });
+  }
+}
+
+/* =================================================================
+ * 5. 媒体文件与封面的地址缓存
+ *    IndexedDB 里存的是 Blob，要显示就得用 URL.createObjectURL 生成地址
+ * ================================================================= */
+const mediaCache = new Map(); // 媒体 id -> { id, type, name, url }
+const coverCache = new Map(); // 卡片 id -> url 或 null
+
+function rememberMedia(record) {
+  if (!mediaCache.has(record.id)) {
+    mediaCache.set(record.id, { id: record.id, type: record.type, name: record.name, url: URL.createObjectURL(record.blob) });
+  }
+  return mediaCache.get(record.id);
+}
+async function mediaInfo(id) {
+  if (mediaCache.has(id)) return mediaCache.get(id);
+  const record = await DB.get('media', id);
+  return record ? rememberMedia(record) : null;
+}
+function forgetMedia(id) {
+  const info = mediaCache.get(id);
+  if (info) { URL.revokeObjectURL(info.url); mediaCache.delete(id); }
+}
+
+async function coverURL(itemId) {
+  if (!coverCache.has(itemId)) {
+    const record = await DB.get('covers', itemId);
+    coverCache.set(itemId, record ? URL.createObjectURL(record.blob) : null);
+  }
+  return coverCache.get(itemId);
+}
+function forgetCover(itemId) {
+  const url = coverCache.get(itemId);
+  if (url) URL.revokeObjectURL(url);
+  coverCache.delete(itemId);
+}
+
+// 页面渲染完后，把占位换成真正的封面图 / 媒体
+async function hydrateCovers(root) {
+  for (const el of $$('[data-cover]', root)) {
+    const url = await coverURL(el.dataset.cover);
+    if (url) el.innerHTML = `<img src="${url}" alt="${esc(el.dataset.alt || '')}">`;
+  }
+}
+function mediaTag(info, alt) {
+  if (info.type === 'image') return `<img src="${info.url}" alt="${esc(alt || info.name)}" loading="lazy">`;
+  if (info.type === 'video') return `<video src="${info.url}" controls preload="metadata"></video>`;
+  return `<audio src="${info.url}" controls preload="metadata"></audio>`;
+}
+async function hydrateMedia(root) {
+  for (const el of $$('.md-media[data-media-id]', root)) {
+    const info = await mediaInfo(Number(el.dataset.mediaId));
+    if (info) {
+      el.innerHTML = mediaTag(info, el.dataset.alt);
+    } else {
+      el.textContent = '这个媒体文件已经被删除了。';
+      el.classList.add('missing');
+    }
+    el.removeAttribute('data-media-id');
+  }
+}
+
+/* =================================================================
+ * 6. Markdown 渲染器
+ *    支持：标题、加粗、斜体、删除线、行内代码、代码块、引用、
+ *          有序/无序列表、待办、表格、分割线、链接、图片，
+ *          以及本站特有的 ![说明](media:编号) 用来插入媒体库里的文件
+ *    先转义 HTML 再加格式，所以用户写的 <script> 不会被执行
+ * ================================================================= */
+const MD = {
+  TABLE_SEP: /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/,
+  LIST: /^\s*([-*+]|\d+\.)\s+/,
+  HR: /^\s*([-*_])(\s*\1){2,}\s*$/,
+
+  // 判断一行是不是某种"块"的开头（用来结束段落）
+  isBlockStart(line, next) {
+    return /^```/.test(line) || /^#{1,6}\s/.test(line) || /^>/.test(line)
+      || this.HR.test(line) || this.LIST.test(line)
+      || (line.includes('|') && next !== undefined && this.TABLE_SEP.test(next));
+  },
+
+  render(src) {
+    const lines = src.replace(/\r\n?/g, '\n').split('\n');
+    let html = '';
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // 代码块 ```
+      if (/^```/.test(line)) {
+        const code = [];
+        i++;
+        while (i < lines.length && !/^```/.test(lines[i])) code.push(lines[i++]);
+        i++; // 跳过结尾的 ```
+        html += `<pre><code>${esc(code.join('\n'))}</code></pre>`;
+        continue;
+      }
+      // 空行
+      if (!line.trim()) { i++; continue; }
+      // 标题 # ~ ######
+      const heading = line.match(/^(#{1,6})\s+(.*)$/);
+      if (heading) {
+        const level = heading[1].length;
+        html += `<h${level}>${this.inline(heading[2])}</h${level}>`;
+        i++;
+        continue;
+      }
+      // 分割线 ---
+      if (this.HR.test(line)) { html += '<hr>'; i++; continue; }
+      // 引用 >（里面可以再写 Markdown，所以递归渲染）
+      if (/^>/.test(line)) {
+        const quote = [];
+        while (i < lines.length && /^>/.test(lines[i])) quote.push(lines[i++].replace(/^>\s?/, ''));
+        html += `<blockquote>${this.render(quote.join('\n'))}</blockquote>`;
+        continue;
+      }
+      // 表格
+      if (line.includes('|') && i + 1 < lines.length && this.TABLE_SEP.test(lines[i + 1])) {
+        html += this.table(lines, i);
+        i += 2;
+        while (i < lines.length && lines[i].includes('|') && lines[i].trim()) i++;
+        continue;
+      }
+      // 列表
+      if (this.LIST.test(line)) {
+        const ordered = /^\s*\d+\./.test(line);
+        const items = [];
+        while (i < lines.length && this.LIST.test(lines[i])) items.push(lines[i++].replace(this.LIST, ''));
+        const tag = ordered ? 'ol' : 'ul';
+        html += `<${tag}>` + items.map(text => {
+          const task = text.match(/^\[( |x|X)\]\s+(.*)$/);
+          if (task) return `<li class="task"><input type="checkbox" disabled${task[1] !== ' ' ? ' checked' : ''}>${this.inline(task[2])}</li>`;
+          return `<li>${this.inline(text)}</li>`;
+        }).join('') + `</${tag}>`;
+        continue;
+      }
+      // 普通段落：连续的行合成一段，行与行之间换行
+      const para = [line];
+      i++;
+      while (i < lines.length && lines[i].trim() && !this.isBlockStart(lines[i], lines[i + 1])) para.push(lines[i++]);
+      html += `<p>${para.map(l => this.inline(l)).join('<br>')}</p>`;
+    }
+    return html;
+  },
+
+  table(lines, start) {
+    const cells = row => row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+    const head = cells(lines[start]);
+    const aligns = cells(lines[start + 1]).map(c =>
+      c.startsWith(':') && c.endsWith(':') ? 'center' : c.endsWith(':') ? 'right' : '');
+    const style = k => aligns[k] ? ` style="text-align:${aligns[k]}"` : '';
+    const rows = [];
+    for (let i = start + 2; i < lines.length && lines[i].includes('|') && lines[i].trim(); i++) rows.push(cells(lines[i]));
+    return `<div class="table-wrap"><table>
+      <thead><tr>${head.map((h, k) => `<th${style(k)}>${this.inline(h)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r => `<tr>${head.map((_, k) => `<td${style(k)}>${this.inline(r[k] || '')}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></div>`;
+  },
+
+  // 只允许 http(s)、mailto 和页内链接，挡掉 javascript: 之类的地址
+  safeURL(url) { return /^(https?:\/\/|mailto:|#)/i.test(url) ? url : null; },
+
+  // 行内格式
+  inline(text) {
+    // 1) 先把 `代码` 取出来，避免里面的 * 等符号被当成格式
+    const codes = [];
+    text = text.replace(/`([^`]+)`/g, (_, code) => { codes.push(code); return `\u0000${codes.length - 1}\u0000`; });
+    // 2) 转义 HTML
+    text = esc(text);
+    // 3) 图片和媒体 ![说明](地址)
+    text = text.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, url) => {
+      const media = url.match(/^media:(\d+)$/);
+      if (media) return `<span class="md-media" data-media-id="${media[1]}" data-alt="${alt}">正在加载${alt}</span>`;
+      const safe = this.safeURL(url);
+      return safe ? `<img src="${safe}" alt="${alt}" loading="lazy">` : alt;
+    });
+    // 4) 链接 [文字](地址)
+    text = text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, url) => {
+      const safe = this.safeURL(url);
+      return safe ? `<a href="${safe}" target="_blank" rel="noopener">${label}</a>` : label;
+    });
+    // 5) 加粗、斜体、删除线
+    text = text
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, '$1<em>$2</em>')
+      .replace(/~~([^~]+)~~/g, '<del>$1</del>');
+    // 6) 把代码放回去
+    return text.replace(/\u0000(\d+)\u0000/g, (_, n) => `<code>${esc(codes[n])}</code>`);
+  },
+};
+
+/* =================================================================
+ * 7. 公共的 HTML 片段
+ * ================================================================= */
+const state = {
+  favKeys: new Set(),   // 当前用户收藏过的东西，格式 "类型:编号"
+  pendingDraft: null,   // 从详情页点"写一篇心得"时带过来的预设
+  pickerTarget: null,   // 插入媒体时要插到哪个输入框
+  coverFor: null,       // 正在更换哪张卡片的封面
+  lastSection: '',
+};
+
+async function loadFavs() {
+  state.favKeys = new Set();
+  if (!Auth.user) return;
+  const list = await DB.getByIndex('favorites', 'owner', Auth.user);
+  list.forEach(f => state.favKeys.add(`${f.kind}:${f.ref}`));
+}
+
+// 栏目顶部的色带 + 子标签
+function band({ cls, title, lead, tabs, base, active }) {
+  const tabsHTML = tabs ? `<nav class="subtabs" aria-label="${esc(title)}的子栏目">${
+    tabs.map(([key, label]) => `<a href="#${base}/${key}"${key === active ? ' aria-current="page"' : ''}>${label}</a>`).join('')
+  }</nav>` : '';
+  return `<section class="band ${cls}${tabs ? '' : ' no-tabs'}"><div class="wrap">
+    <h1 class="band-title">${title}</h1>
+    <p class="band-lead">${lead}</p>
+    ${tabsHTML}
+  </div></section>`;
+}
+
+function favButton(kind, ref, title) {
+  return `<button type="button" class="fav" data-action="fav" data-kind="${kind}" data-ref="${esc(ref)}" data-title="${esc(title)}" aria-pressed="false">
+    <span class="star" aria-hidden="true"></span><span class="fav-label">收藏</span></button>`;
+}
+// 根据收藏记录，更新页面上所有收藏按钮的状态
+function syncFavButtons(root = document) {
+  $$('[data-action="fav"]', root).forEach(btn => {
+    const on = state.favKeys.has(`${btn.dataset.kind}:${btn.dataset.ref}`);
+    btn.setAttribute('aria-pressed', on);
+    btn.querySelector('.fav-label').textContent = on ? '已收藏' : '收藏';
+  });
+}
+
+function emptyHTML(text, action = '') {
+  return `<div class="empty"><p>${text}</p>${action}</div>`;
+}
+
+function gateHTML(text) {
+  return `<div class="wrap page"><div class="gate">
+    <h2>先登录一下</h2>
+    <p>${text}</p>
+    <div class="actions">
+      <button class="btn primary" data-action="open-login">登录</button>
+      <button class="btn" data-action="open-register">注册新账号</button>
+    </div>
+    <p class="hint">演示账号 demo，密码 123456。</p>
+  </div></div>`;
+}
+
+function coverHTML(item, asLink) {
+  const attrs = `class="cover" style="--c:${item.color}" data-cover="${item.id}" data-alt="${esc(item.name)}"`;
+  return asLink
+    ? `<a ${attrs} href="#item/${item.id}" aria-label="查看${esc(item.name)}的介绍">${ART[item.art]}</a>`
+    : `<div ${attrs}>${ART[item.art]}</div>`;
+}
+
+function itemCard(item) {
+  return `<article class="item-card">
+    ${coverHTML(item, true)}
+    <div class="item-body">
+      <h3><a href="#item/${item.id}">${esc(item.name)}</a></h3>
+      <p class="item-kind">${esc(item.kind)}，${esc(item.since)}</p>
+      <p class="item-intro">${esc(item.intro)}</p>
+      <div class="item-foot">
+        <ul class="tags">${item.tags.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+        ${favButton('item', item.id, item.name)}
+      </div>
+    </div>
+  </article>`;
+}
+
+function postRow(post, q = '') {
+  const text = plainText(post.content);
+  const excerpt = q ? snippet(text, q) : text.slice(0, 90) + (text.length > 90 ? '…' : '');
+  return `<li class="post-row z-${post.zone}">
+    <div class="post-main">
+      <h3><a href="#post/${post.id}">${highlight(post.title, q)}</a></h3>
+      <p class="post-meta">${ZONES[post.zone].noteName}，${esc(post.author)} 写于 ${fmtDate(post.createdAt)}</p>
+      <p class="post-excerpt">${highlight(excerpt, q)}</p>
+    </div>
+    ${favButton('post', post.id, post.title)}
+  </li>`;
+}
+const postList = (posts, q) => `<ul class="post-list">${posts.map(p => postRow(p, q)).join('')}</ul>`;
+
+function writeButton(zone) {
+  return Auth.user
+    ? `<button class="btn primary" data-action="write" data-zone="${zone}">写一篇${ZONES[zone].noteName}</button>`
+    : `<button class="btn" data-action="open-login" data-note="登录后就能写心得。">登录后写心得</button>`;
+}
+
+function notFound(text = '这个页面不存在。') {
+  return { html: `<div class="wrap page">${emptyHTML(text, '<a class="btn" href="#home">回到首页</a>')}</div>`, nav: '', title: '找不到页面' };
+}
+
+/* =================================================================
+ * 8. 各个页面
+ *    每个页面函数返回 { html, nav, title, mount }
+ *      html  ：页面内容
+ *      nav   ：顶栏哪个导航项高亮
+ *      mount ：内容放进页面后要执行的事（绑定表单等），可选
+ * ================================================================= */
+
+/* ---------- 8.1 首页 ---------- */
+async function viewHome() {
+  const posts = (await DB.getAll('posts')).sort(byNewest);
+  const count = zone => posts.filter(p => p.zone === zone).length;
+  const itemCount = zone => ITEMS.filter(i => i.zone === zone).length;
+
+  const welcome = Auth.user
+    ? `<div class="card">
+        <h2>你好，${esc(Auth.user)}</h2>
+        <p>今天想记点什么？</p>
+        <ul class="quick">
+          <li><a href="#journal/write">写一篇心得</a></li>
+          <li><a href="#journal/notes">记一条随手记</a></li>
+          <li><a href="#journal/media">上传照片或视频</a></li>
+          <li><a href="#favorites">看看我的收藏</a></li>
+        </ul>
+      </div>`
+    : `<div class="card card-login">
+        <h2>登录后可以做更多</h2>
+        <p>写心得、记随手记、上传照片和视频，还能收藏喜欢的内容。</p>
+        <div class="actions">
+          <button class="btn primary" data-action="open-login">登录</button>
+          <button class="btn" data-action="open-register">注册新账号</button>
+        </div>
+        <p class="hint">想先看看效果，可以用演示账号 demo，密码 123456。</p>
+      </div>`;
+
+  const html = `
+  <section class="hero"><div class="wrap">
+    <div class="hero-head">
+      <h1 class="hero-title"><span class="a">两个</span><span class="b">半场</span></h1>
+      <p class="hero-sub">${esc(SITE.tagline)}</p>
+    </div>
+    <div class="pitch">
+      <a class="half half-game" href="#games">
+        <span class="half-word">游戏</span>
+        <span class="half-text">${itemCount('game')} 个常玩的游戏，${count('game')} 篇游戏心得</span>
+        <span class="half-go">进入游戏分区</span>
+      </a>
+      <a class="half half-sport" href="#sports">
+        <span class="half-word">体育</span>
+        <span class="half-text">${itemCount('sport')} 项常做的运动，${count('sport')} 篇体育心得</span>
+        <span class="half-go">进入体育分区</span>
+      </a>
+      <svg class="center-circle" viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="ring" cx="50" cy="50" r="48" pathLength="100"/>
+        <circle class="dot" cx="50" cy="50" r="2.5"/>
+      </svg>
+    </div>
+  </div></section>
+
+  <section class="wrap home-grid">
+    <div>
+      <h2 class="section-title">最近写下的</h2>
+      ${posts.length ? postList(posts.slice(0, 4)) : emptyHTML('还没有心得。', writeButton('game'))}
+      ${posts.length > 4 ? `<p class="more">更早的心得在<a href="#games/notes">游戏心得</a>和<a href="#sports/notes">体育心得</a>里。</p>` : ''}
+    </div>
+    <aside>
+      ${welcome}
+      <div class="card">
+        <h2>关于这个网站</h2>
+        <p>大学生活值得记下来，玩也一样。我把在游戏和运动里收获的经验写在这里，以后翻看时还能想起当时的感受。</p>
+        <p class="hint">实用软件实践课程设计作品，用 HTML、CSS 和 JavaScript 写成。</p>
+      </div>
+    </aside>
+  </section>`;
+  return { html, nav: 'home', title: '首页' };
+}
+
+/* ---------- 8.2 游戏分区 / 体育分区 ---------- */
+async function viewZone(zone, sub = 'intro') {
+  const Z = ZONES[zone];
+  if (!Z.tabs.some(([key]) => key === sub)) sub = 'intro';
+  let body;
+
+  if (sub === 'intro') {
+    body = `<div class="item-grid">${ITEMS.filter(i => i.zone === zone).map(itemCard).join('')}</div>`;
+  } else {
+    const posts = (await DB.getByIndex('posts', 'zone', zone)).sort(byNewest);
+    body = `<div class="list-head">
+        <p class="muted">共 ${posts.length} 篇${Z.noteName}，新写的在前面。</p>
+        ${writeButton(zone)}
+      </div>
+      ${posts.length ? postList(posts) : emptyHTML(`还没有${Z.noteName}。`)}`;
+  }
+
+  return {
+    html: band({ cls: Z.bandClass, title: Z.name, lead: Z.lead, tabs: Z.tabs, base: Z.key, active: sub })
+        + `<div class="wrap page">${body}</div>`,
+    nav: Z.key,
+    title: Z.name,
+  };
+}
+
+/* ---------- 8.3 游戏/运动详情 ---------- */
+async function viewItem(id) {
+  const item = ITEMS.find(i => i.id === id);
+  if (!item) return notFound();
+  const Z = ZONES[item.zone];
+  const related = (await DB.getAll('posts'))
+    .filter(p => p.title.includes(item.name) || p.content.includes(item.name))
+    .sort(byNewest);
+  const hasCustomCover = !!(await coverURL(item.id));
+
+  const ownerActions = Auth.user ? `
+    <button class="btn" data-action="write" data-zone="${item.zone}" data-about="${esc(item.name)}">写一篇关于${esc(item.name)}的心得</button>
+    <button class="btn" data-action="change-cover" data-id="${item.id}">更换图片</button>
+    ${hasCustomCover ? `<button class="btn ghost" data-action="reset-cover" data-id="${item.id}">恢复默认图片</button>` : ''}` : '';
+
+  const html = `<div class="wrap">
+    <a class="back" href="#${Z.key}/intro">返回${Z.name}</a>
+    <div class="detail">
+      ${coverHTML(item, false)}
+      <div>
+        <h1>${esc(item.name)}</h1>
+        <p class="detail-kind">${esc(item.kind)}，${esc(item.since)}</p>
+        <ul class="tags">${item.tags.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+        <p class="lead">${esc(item.intro)}</p>
+        <div class="story">${item.story.map(p => `<p>${esc(p)}</p>`).join('')}</div>
+        <div class="actions">${favButton('item', item.id, item.name)}${ownerActions}</div>
+      </div>
+    </div>
+    <section class="related">
+      <h2 class="section-title">提到${esc(item.name)}的心得</h2>
+      ${related.length ? postList(related) : `<p class="muted">还没有心得提到${esc(item.name)}。</p>`}
+    </section>
+  </div>`;
+  return { html, nav: Z.key, title: item.name };
+}
+
+/* ---------- 8.4 阅读一篇心得 ---------- */
+async function viewPost(id) {
+  const post = await DB.get('posts', Number(id));
+  if (!post) return notFound('这篇心得不存在，可能已经被删除了。');
+  const Z = ZONES[post.zone];
+  const mine = Auth.user === post.author;
+  const edited = post.updatedAt - post.createdAt > 60000;
+
+  const html = `<div class="wrap page"><article class="article z-${post.zone}">
+    <a class="back" href="#${Z.key}/notes">返回${Z.noteName}</a><br>
+    <span class="zone-tag">${Z.noteName}</span>
+    <h1>${esc(post.title)}</h1>
+    <div class="article-meta">
+      <span>作者 ${esc(post.author)}</span>
+      <span>写于 ${fmtDate(post.createdAt)} ${fmtTime(post.createdAt)}</span>
+      ${edited ? `<span>修改于 ${fmtDate(post.updatedAt)} ${fmtTime(post.updatedAt)}</span>` : ''}
+    </div>
+    <div class="md-body">${MD.render(post.content)}</div>
+    <div class="actions article-actions">
+      ${favButton('post', post.id, post.title)}
+      ${mine ? `<a class="btn" href="#journal/write/${post.id}">编辑</a>
+                <button class="btn danger" data-action="delete-post" data-id="${post.id}">删除</button>` : ''}
+    </div>
+  </article></div>`;
+  return { html, nav: Z.key, title: post.title };
+}
+
+/* ---------- 8.5 我的记录：写心得 / 随手记 / 媒体库 ---------- */
+const JOURNAL_TABS = [['write', '写心得'], ['notes', '随手记'], ['media', '媒体库']];
+
+async function viewJournal(sub = 'write', arg) {
+  if (!JOURNAL_TABS.some(([key]) => key === sub)) sub = 'write';
+  const head = band({
+    cls: 'band-journal', title: '我的记录',
+    lead: '心得会显示在游戏分区和体育分区，所有人都能看到；随手记和媒体库只有你自己能看到。',
+    tabs: JOURNAL_TABS, base: 'journal', active: sub,
+  });
+  if (!Auth.user) return { html: head + gateHTML('登录后可以写心得、记随手记和上传媒体文件。'), nav: 'journal', title: '我的记录' };
+  if (sub === 'notes') return journalNotes(head);
+  if (sub === 'media') return journalMedia(head, arg);
+  return journalWrite(head, arg);
+}
+
+/* ----- 8.5.1 写心得：Markdown 编辑器 ----- */
+
+// 编辑器工具栏：label 是按钮上的字，run 是点击后对输入框做的事
+const TOOLBAR = [
+  { label: '标题', title: '二级标题', run: ta => prefixLines(ta, '## ') },
+  { label: 'B', title: '加粗（Ctrl+B）', cls: 'b', run: ta => wrapSelection(ta, '**') },
+  { label: 'I', title: '斜体（Ctrl+I）', cls: 'i', run: ta => wrapSelection(ta, '*') },
+  { label: 'S', title: '删除线', cls: 's', run: ta => wrapSelection(ta, '~~') },
+  'sep',
+  { label: '引用', run: ta => prefixLines(ta, '> ') },
+  { label: '列表', run: ta => prefixLines(ta, '- ') },
+  { label: '编号', run: ta => prefixLines(ta, k => `${k + 1}. `) },
+  { label: '待办', run: ta => prefixLines(ta, '- [ ] ') },
+  'sep',
+  { label: '代码', run: ta => insertBlock(ta, '```\n' + (selectedText(ta) || '在这里写代码') + '\n```') },
+  { label: '链接', run: ta => wrapSelection(ta, '[', '](https://)', '链接文字') },
+  { label: '表格', run: ta => insertBlock(ta, '| 项目 | 内容 |\n| --- | --- |\n| 示例 | 示例 |') },
+  { label: '分割线', run: ta => insertBlock(ta, '---') },
+  'sep',
+  { label: '插入图片、视频或音频', cls: 'media', run: ta => openMediaPicker(ta) },
+];
+
+const selectedText = ta => ta.value.slice(ta.selectionStart, ta.selectionEnd);
+const notifyInput = ta => { ta.focus(); ta.dispatchEvent(new Event('input')); };
+
+// 在选中文字两边加符号，比如 **加粗**
+function wrapSelection(ta, before, after = before, placeholder = '文字') {
+  const start = ta.selectionStart;
+  const text = selectedText(ta) || placeholder;
+  ta.setRangeText(before + text + after, start, ta.selectionEnd, 'end');
+  ta.setSelectionRange(start + before.length, start + before.length + text.length);
+  notifyInput(ta);
+}
+// 给选中的每一行加前缀，比如 "- " 变成列表
+function prefixLines(ta, prefix) {
+  const v = ta.value;
+  const start = v.lastIndexOf('\n', ta.selectionStart - 1) + 1;
+  let end = v.indexOf('\n', ta.selectionEnd);
+  if (end === -1) end = v.length;
+  const block = v.slice(start, end).split('\n')
+    .map((line, k) => (typeof prefix === 'function' ? prefix(k) : prefix) + line).join('\n');
+  ta.setRangeText(block, start, end, 'select');
+  notifyInput(ta);
+}
+// 插入一整块内容，前面自动空一行
+function insertBlock(ta, text) {
+  const s = ta.selectionStart, v = ta.value;
+  let before = '';
+  if (s > 0) before = v[s - 1] !== '\n' ? '\n\n' : (s > 1 && v[s - 2] !== '\n' ? '\n' : '');
+  ta.setRangeText(before + text + '\n', s, ta.selectionEnd, 'end');
+  notifyInput(ta);
+}
+
+async function journalWrite(head, id) {
+  let post = null;
+  if (id) {
+    post = await DB.get('posts', Number(id));
+    if (!post || post.author !== Auth.user) {
+      return { html: head + `<div class="wrap page">${emptyHTML('找不到这篇心得，或者它不是你写的，不能编辑。', '<a class="btn" href="#journal/write">写一篇新的</a>')}</div>`,
+               nav: 'journal', title: '写心得' };
+    }
+  }
+  const zone = post ? post.zone : 'game';
+  const toolbar = TOOLBAR.map((t, i) => t === 'sep'
+    ? '<span class="sep" aria-hidden="true"></span>'
+    : `<button type="button" class="${t.cls || ''}" data-tool="${i}" title="${t.title || t.label}" aria-label="${t.title || t.label}">${t.label}</button>`).join('');
+
+  const html = head + `<div class="wrap page">
+    <form class="editor" id="editorForm" novalidate>
+      <div class="editor-head">
+        <label class="sr" for="postTitle">标题</label>
+        <input id="postTitle" class="title-input" placeholder="给这篇心得起个标题" maxlength="60" value="${esc(post ? post.title : '')}">
+        <fieldset class="seg">
+          <legend class="sr">分类</legend>
+          <label><input type="radio" name="zone" value="game"${zone === 'game' ? ' checked' : ''}><span>游戏心得</span></label>
+          <label><input type="radio" name="zone" value="sport"${zone === 'sport' ? ' checked' : ''}><span>体育心得</span></label>
+        </fieldset>
+      </div>
+      <div class="toolbar" role="toolbar" aria-label="格式">${toolbar}</div>
+      <div class="editor-switch" role="group" aria-label="切换编辑和预览">
+        <button type="button" data-show="edit" aria-pressed="true">编辑</button>
+        <button type="button" data-show="preview" aria-pressed="false">预览</button>
+      </div>
+      <div class="panes" data-show="edit">
+        <label class="edit-pane"><span class="sr">正文，支持 Markdown</span>
+          <textarea id="postBody" placeholder="用 Markdown 写正文，右边会实时显示效果。&#10;&#10;## 小标题&#10;**加粗**、*斜体*、- 列表、> 引用&#10;&#10;点工具栏右边的黄色按钮，可以插入图片、视频或音频。">${esc(post ? post.content : '')}</textarea>
+        </label>
+        <div class="preview md-body" id="preview" aria-label="预览"></div>
+      </div>
+      <div class="editor-foot">
+        <span class="count" id="wordCount">0 字</span>
+        <span class="hint">${post ? 'Ctrl+S 保存修改' : 'Ctrl+S 发布，没发布的内容会自动存成草稿'}</span>
+        ${post ? `<a class="btn" href="#post/${post.id}">取消编辑</a>` : `<button type="button" class="btn ghost" id="clearDraft">清空</button>`}
+        <button type="submit" class="btn primary">${post ? '保存修改' : '发布心得'}</button>
+      </div>
+    </form>
+  </div>`;
+  return { html, nav: 'journal', title: post ? '编辑心得' : '写心得', mount: () => mountEditor(post) };
+}
+
+function mountEditor(post) {
+  const form = $('#editorForm');
+  const title = $('#postTitle');
+  const body = $('#postBody');
+  const preview = $('#preview');
+  const draftKey = `two-halves-draft-${Auth.user}`;
+  const getZone = () => form.querySelector('input[name="zone"]:checked').value;
+  const setZone = zone => { const r = form.querySelector(`input[name="zone"][value="${zone}"]`); if (r) r.checked = true; };
+
+  // 新建时：优先用详情页带过来的预设，否则恢复上次的草稿
+  if (!post) {
+    if (state.pendingDraft) {
+      setZone(state.pendingDraft.zone);
+      if (state.pendingDraft.about) title.value = `关于${state.pendingDraft.about}`;
+      state.pendingDraft = null;
+    } else {
+      try {
+        const draft = JSON.parse(local.get(draftKey) || 'null');
+        if (draft && (draft.title || draft.content)) {
+          title.value = draft.title; body.value = draft.content; setZone(draft.zone);
+          toast('已恢复上次没发布的草稿');
+        }
+      } catch { /* 草稿损坏就忽略 */ }
+    }
+  }
+
+  // 实时预览和字数
+  const updatePreview = () => {
+    preview.innerHTML = body.value.trim() ? MD.render(body.value) : '<p class="muted">预览会显示在这里。</p>';
+    hydrateMedia(preview);
+    $('#wordCount').textContent = `${body.value.replace(/\s/g, '').length} 字`;
+  };
+  const saveDraft = debounce(() => {
+    if (!post) local.set(draftKey, JSON.stringify({ title: title.value, content: body.value, zone: getZone() }));
+  }, 400);
+  body.addEventListener('input', debounce(updatePreview, 120));
+  body.addEventListener('input', saveDraft);
+  title.addEventListener('input', saveDraft);
+  form.addEventListener('change', saveDraft);
+  updatePreview();
+
+  // 工具栏
+  $('.toolbar', form).addEventListener('click', e => {
+    const btn = e.target.closest('[data-tool]');
+    if (btn) TOOLBAR[btn.dataset.tool].run(body);
+  });
+
+  // 快捷键
+  form.addEventListener('keydown', e => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const key = e.key.toLowerCase();
+    if (key === 's') { e.preventDefault(); form.requestSubmit(); }
+    if (key === 'b' && e.target === body) { e.preventDefault(); wrapSelection(body, '**'); }
+    if (key === 'i' && e.target === body) { e.preventDefault(); wrapSelection(body, '*'); }
+  });
+
+  // 手机上切换"编辑 / 预览"
+  $('.editor-switch', form).addEventListener('click', e => {
+    const btn = e.target.closest('[data-show]');
+    if (!btn) return;
+    $('.panes', form).dataset.show = btn.dataset.show;
+    $$('.editor-switch button', form).forEach(b => b.setAttribute('aria-pressed', b === btn));
+  });
+
+  $('#clearDraft')?.addEventListener('click', () => {
+    if ((title.value || body.value) && !confirm('清空标题和正文吗？')) return;
+    title.value = ''; body.value = '';
+    local.remove(draftKey);
+    updatePreview();
+    title.focus();
+  });
+
+  // 发布 / 保存
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!title.value.trim()) { toast('先给心得起个标题'); title.focus(); return; }
+    if (!body.value.trim()) { toast('正文还是空的'); body.focus(); return; }
+    const now = Date.now();
+    let id;
+    if (post) {
+      await DB.put('posts', { ...post, title: title.value.trim(), content: body.value, zone: getZone(), updatedAt: now });
+      id = post.id;
+      toast('已保存修改');
+    } else {
+      id = await DB.add('posts', { title: title.value.trim(), content: body.value, zone: getZone(), author: Auth.user, createdAt: now, updatedAt: now });
+      local.remove(draftKey);
+      toast('心得已发布');
+    }
+    go(`#post/${id}`);
+  });
+}
+
+/* ----- 8.5.2 随手记 ----- */
+async function journalNotes(head) {
+  const notes = (await DB.getByIndex('notes', 'owner', Auth.user)).sort(byNewest);
+
+  // 按日期分组
+  const groups = [];
+  for (const n of notes) {
+    const day = fmtDay(n.createdAt);
+    if (!groups.length || groups[groups.length - 1].day !== day) groups.push({ day, notes: [] });
+    groups[groups.length - 1].notes.push(n);
+  }
+  const timeline = groups.map(g => `
+    <h2 class="day">${g.day}</h2>
+    <ul class="notes">${g.notes.map(n => `
+      <li class="note z-${n.tag}">
+        <div class="note-head">
+          <time>${fmtTime(n.createdAt)}</time><span class="chip">${NOTE_TAGS[n.tag]}</span>
+          <button class="btn ghost small" data-action="delete-note" data-id="${n.id}" aria-label="删除这条随手记">删除</button>
+        </div>
+        <p class="note-text">${esc(n.text)}</p>
+      </li>`).join('')}
+    </ul>`).join('');
+
+  const html = head + `<div class="wrap page">
+    <form class="composer" id="noteForm">
+      <label class="sr" for="noteText">随手记</label>
+      <textarea id="noteText" placeholder="今天发生了什么？随手记一句。" maxlength="1000"></textarea>
+      <div class="composer-row">
+        <fieldset class="seg"><legend class="sr">分类</legend>
+          ${Object.entries(NOTE_TAGS).map(([key, label], k) =>
+            `<label><input type="radio" name="tag" value="${key}"${k === 0 ? ' checked' : ''}><span>${label}</span></label>`).join('')}
+        </fieldset>
+        <span class="hint">Ctrl+Enter 也能记下</span>
+        <button class="btn primary" type="submit">记下</button>
+      </div>
+    </form>
+    ${notes.length ? timeline : emptyHTML('还没有随手记。在上面的框里写一句话，按“记下”就行。')}
+  </div>`;
+
+  const mount = () => {
+    const form = $('#noteForm');
+    const text = $('#noteText');
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!text.value.trim()) { toast('先写点什么再记下'); text.focus(); return; }
+      await DB.add('notes', { owner: Auth.user, tag: form.tag.value, text: text.value.trim(), createdAt: Date.now() });
+      toast('已记下');
+      render();
+    });
+    text.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') form.requestSubmit();
+    });
+  };
+  return { html, nav: 'journal', title: '随手记', mount };
+}
+
+/* ----- 8.5.3 媒体库 ----- */
+async function uploadFiles(fileList) {
+  const ids = [];
+  const skipped = [];
+  for (const file of fileList) {
+    const type = file.type.split('/')[0];
+    if (!TYPE_NAME[type]) { skipped.push(`${file.name}（不是图片、视频或音频）`); continue; }
+    if (file.size > MAX_FILE_SIZE) { skipped.push(`${file.name}（超过 200 MB）`); continue; }
+    ids.push(await DB.add('media', {
+      owner: Auth.user, name: file.name, type, mime: file.type, size: file.size,
+      blob: file, // File 本身就是 Blob，可以直接存进 IndexedDB
+      createdAt: Date.now(),
+    }));
+  }
+  if (skipped.length) alert('这些文件没有上传：\n' + skipped.join('\n'));
+  if (ids.length) toast(`已上传 ${ids.length} 个文件`);
+  return ids;
+}
+
+function mediaTile(m) {
+  const info = rememberMedia(m);
+  let face;
+  if (m.type === 'image') {
+    face = `<button type="button" class="tile-face tile-view" data-action="lightbox" data-id="${m.id}" aria-label="放大查看 ${esc(m.name)}">
+              <img src="${info.url}" alt="" loading="lazy"></button>`;
+  } else if (m.type === 'video') {
+    face = `<video class="tile-face" src="${info.url}" controls preload="metadata"></video>`;
+  } else {
+    const ext = m.name.includes('.') ? m.name.split('.').pop().toUpperCase().slice(0, 5) : '音频';
+    face = `<div class="tile-face audio-face" aria-hidden="true">${esc(ext)}</div><audio src="${info.url}" controls preload="none"></audio>`;
+  }
+  return `<li class="tile">${face}
+    <div class="tile-info">
+      <p class="tile-name" title="${esc(m.name)}">${esc(m.name)}</p>
+      <p class="tile-meta">${TYPE_NAME[m.type]}，${fmtSize(m.size)}，${fmtDate(m.createdAt)}</p>
+      <div class="tile-actions">
+        ${favButton('media', m.id, m.name)}
+        <button class="btn small danger" data-action="delete-media" data-id="${m.id}">删除</button>
+      </div>
+    </div>
+  </li>`;
+}
+
+async function journalMedia(head, filter = 'all') {
+  const filters = [['all', '全部'], ['image', '图片'], ['video', '视频'], ['audio', '音频']];
+  if (!filters.some(([key]) => key === filter)) filter = 'all';
+  const all = (await DB.getByIndex('media', 'owner', Auth.user)).sort(byNewest);
+  const shown = filter === 'all' ? all : all.filter(m => m.type === filter);
+  const countOf = key => key === 'all' ? all.length : all.filter(m => m.type === key).length;
+  const totalSize = all.reduce((sum, m) => sum + m.size, 0);
+
+  const html = head + `<div class="wrap page">
+    <label class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" class="sr" multiple accept="image/*,video/*,audio/*">
+      <strong>把图片、视频或音频拖到这里</strong>
+      <span>也可以点击这里选择文件，一次可以选多个，单个文件不超过 200 MB</span>
+    </label>
+    <div class="media-bar">
+      <nav class="chips" aria-label="按类型筛选">
+        ${filters.map(([key, label]) => `<a href="#journal/media/${key}"${key === filter ? ' aria-current="page"' : ''}>${label} ${countOf(key)}</a>`).join('')}
+      </nav>
+      <span class="usage" id="usage">共 ${all.length} 个文件，${fmtSize(totalSize)}</span>
+    </div>
+    ${shown.length
+      ? `<ul class="media-grid">${shown.map(mediaTile).join('')}</ul>`
+      : emptyHTML(all.length ? `还没有${TYPE_NAME[filter]}。` : '媒体库还是空的。上传的照片、视频和音频会出现在这里，写心得时可以插进正文。')}
+  </div>`;
+
+  const mount = () => {
+    const zone = $('#dropzone');
+    $('#fileInput').addEventListener('change', async e => {
+      const ids = await uploadFiles(e.target.files);
+      e.target.value = '';
+      if (ids.length) render();
+    });
+    // 拖拽上传
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('is-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('is-over'));
+    zone.addEventListener('drop', async e => {
+      e.preventDefault();
+      zone.classList.remove('is-over');
+      const ids = await uploadFiles(e.dataTransfer.files);
+      if (ids.length) render();
+    });
+    // 显示浏览器给这个网站的存储空间
+    navigator.storage?.estimate?.().then(({ usage, quota }) => {
+      const el = $('#usage');
+      if (el && quota) el.textContent += `。本站已用 ${fmtSize(usage)}，浏览器最多允许约 ${fmtSize(quota)}`;
+    });
+  };
+  return { html, nav: 'journal', title: '媒体库', mount };
+}
+
+// 编辑器里的"插入媒体"弹窗
+async function openMediaPicker(textarea) {
+  state.pickerTarget = textarea;
+  await fillPicker();
+  $('#pickerDialog').showModal();
+}
+async function fillPicker() {
+  const list = (await DB.getByIndex('media', 'owner', Auth.user)).sort(byNewest);
+  $('#pickerGrid').innerHTML = list.length
+    ? list.map(m => {
+        const info = rememberMedia(m);
+        const face = m.type === 'image' ? `<img src="${info.url}" alt="">` : `<span class="pick-type">${TYPE_NAME[m.type]}</span>`;
+        return `<button type="button" class="pick" data-action="pick-media" data-id="${m.id}">${face}<span class="pick-name">${esc(m.name)}</span></button>`;
+      }).join('')
+    : '<p class="muted">媒体库还是空的。点上面的“上传并插入新文件”。</p>';
+}
+function insertMediaRef(textarea, info) {
+  const alt = info.name.replace(/[[\]()]/g, '');
+  insertBlock(textarea, `![${alt}](media:${info.id})`);
+}
+
+/* ---------- 8.6 收藏 ---------- */
+const FAV_TABS = [['all', '全部'], ['item', '游戏与运动'], ['post', '心得'], ['media', '媒体']];
+
+async function viewFavorites(sub = 'all') {
+  if (!FAV_TABS.some(([key]) => key === sub)) sub = 'all';
+  const head = band({ cls: 'band-fav', title: '收藏', lead: '点过星标的游戏、运动、心得和媒体文件都在这里，方便下次再看。',
+                      tabs: FAV_TABS, base: 'favorites', active: sub });
+  if (!Auth.user) return { html: head + gateHTML('登录后就能收藏喜欢的内容，下次在这里找到它们。'), nav: 'favorites', title: '收藏' };
+
+  const favs = (await DB.getByIndex('favorites', 'owner', Auth.user))
+    .filter(f => sub === 'all' || f.kind === sub)
+    .sort(byNewest);
+
+  // 根据收藏记录找到原内容
+  const rows = [];
+  for (const f of favs) {
+    let row = null;
+    if (f.kind === 'item') {
+      const item = ITEMS.find(i => i.id === f.ref);
+      if (item) row = { zone: item.zone, href: `#item/${item.id}`, title: item.name, desc: `${ZONES[item.zone].name}，${item.intro}` };
+    } else if (f.kind === 'post') {
+      const post = await DB.get('posts', Number(f.ref));
+      if (post) row = { zone: post.zone, href: `#post/${post.id}`, title: post.title, desc: `${ZONES[post.zone].noteName}，${post.author} 写` };
+    } else if (f.kind === 'media') {
+      const m = await DB.get('media', Number(f.ref));
+      if (m) {
+        const info = rememberMedia(m);
+        row = { zone: 'media', href: `#journal/media/${m.type}`, title: m.name, desc: `${TYPE_NAME[m.type]}，${fmtSize(m.size)}`,
+                thumb: m.type === 'image' ? info.url : null };
+      }
+    }
+    rows.push({ f, row });
+  }
+
+  const list = rows.map(({ f, row }) => row
+    ? `<li class="fav-row z-${row.zone}">
+        ${row.thumb ? `<img class="fav-thumb" src="${row.thumb}" alt="">` : ''}
+        <div class="fav-main"><a href="${row.href}">${esc(row.title)}</a><p>${esc(row.desc)}，收藏于 ${fmtDate(f.createdAt)}</p></div>
+        ${favButton(f.kind, f.ref, row.title)}
+      </li>`
+    : `<li class="fav-row missing">
+        <div class="fav-main"><strong>${esc(f.title)}</strong><p>原内容已经被删除了。</p></div>
+        ${favButton(f.kind, f.ref, f.title)}
+      </li>`).join('');
+
+  const html = head + `<div class="wrap page">
+    ${rows.length ? `<ul class="fav-list">${list}</ul>`
+      : emptyHTML('这里还是空的。在游戏、运动、心得或媒体文件旁边点“收藏”，它就会出现在这里。', '<a class="btn" href="#games">去游戏分区看看</a>')}
+  </div>`;
+  return { html, nav: 'favorites', title: '收藏' };
+}
+
+/* ---------- 8.7 搜索 ---------- */
+async function viewSearch(raw = '') {
+  let q = '';
+  try { q = decodeURIComponent(raw).trim(); } catch { q = raw; }
+  const head = band({ cls: 'band-search', title: q ? `搜索“${esc(q)}”` : '搜索',
+                      lead: '在游戏、运动、心得里查找；登录后还会查找你的随手记和媒体文件。' });
+  const mount = () => { $('#searchInput').value = q; };
+  if (!q) return { html: head + `<div class="wrap page">${emptyHTML('在顶栏的搜索框里输入关键词，比如“篮球”或“图书馆”。')}</div>`, nav: '', title: '搜索', mount };
+
+  const has = s => String(s).toLowerCase().includes(q.toLowerCase());
+  const items = ITEMS.filter(i => [i.name, i.kind, i.intro, ...i.tags, ...i.story].some(has));
+  const posts = (await DB.getAll('posts')).filter(p => has(p.title) || has(plainText(p.content))).sort(byNewest);
+  const notes = Auth.user ? (await DB.getByIndex('notes', 'owner', Auth.user)).filter(n => has(n.text)).sort(byNewest) : [];
+  const media = Auth.user ? (await DB.getByIndex('media', 'owner', Auth.user)).filter(m => has(m.name)).sort(byNewest) : [];
+
+  const group = (title, count, inner) => count ? `<section class="result-group"><h2>${title}<small>${count} 条</small></h2>${inner}</section>` : '';
+  const total = items.length + posts.length + notes.length + media.length;
+
+  const body = total ? [
+    group('游戏与运动', items.length, `<ul class="result-list">${items.map(i => `
+      <li class="result z-${i.zone}"><div class="result-main">
+        <a href="#item/${i.id}">${highlight(i.name, q)}</a>
+        <p>${highlight(snippet([i.intro, ...i.story].join(''), q), q)}</p>
+      </div>${favButton('item', i.id, i.name)}</li>`).join('')}</ul>`),
+    group('心得', posts.length, postList(posts, q)),
+    group('随手记', notes.length, `<ul class="result-list">${notes.map(n => `
+      <li class="result z-${n.tag}"><div class="result-main">
+        <a href="#journal/notes">随手记，${fmtDate(n.createdAt)} ${fmtTime(n.createdAt)}</a>
+        <p>${highlight(snippet(n.text, q), q)}</p>
+      </div></li>`).join('')}</ul>`),
+    group('媒体文件', media.length, `<ul class="result-list">${media.map(m => `
+      <li class="result z-media"><div class="result-main">
+        <a href="#journal/media/${m.type}">${highlight(m.name, q)}</a>
+        <p>${TYPE_NAME[m.type]}，${fmtSize(m.size)}，${fmtDate(m.createdAt)}</p>
+      </div></li>`).join('')}</ul>`),
+  ].join('') : emptyHTML(`没有找到和“${esc(q)}”有关的内容。换个关键词试试，比如“篮球”或“图书馆”。`);
+
+  return { html: head + `<div class="wrap page">${body}</div>`, nav: '', title: `搜索 ${q}`, mount };
+}
+
+/* =================================================================
+ * 9. 路由：根据地址栏 # 后面的内容显示不同页面
+ *    例如 #games/notes 显示"游戏分区"的"游戏心得"子标签
+ * ================================================================= */
+const ROUTES = {
+  home: viewHome,
+  games: sub => viewZone('game', sub),
+  sports: sub => viewZone('sport', sub),
+  item: viewItem,
+  post: viewPost,
+  journal: viewJournal,
+  favorites: viewFavorites,
+  search: viewSearch,
+};
+
+let renderSeq = 0; // 快速连续切换页面时，只显示最后一次
+
+async function render() {
+  const seq = ++renderSeq;
+  const parts = location.hash.replace(/^#/, '').split('/');
+  const name = parts[0] || 'home';
+  const view = ROUTES[name] || ROUTES.home;
+
+  let result;
+  try {
+    result = await view(...parts.slice(1));
+  } catch (err) {
+    console.error(err);
+    result = { html: `<div class="wrap page">${emptyHTML(`页面加载失败：${esc(err.message)}。刷新一下试试。`)}</div>`, nav: '', title: '出错了' };
+  }
+  if (seq !== renderSeq) return;
+
+  const main = $('#view');
+  main.innerHTML = result.html;
+  document.title = `${result.title} - ${SITE.name}`;
+  $$('.mainnav a').forEach(a => {
+    if (a.dataset.nav === result.nav) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+  if (name !== 'search') $('#searchInput').value = '';
+
+  syncFavButtons(main);
+  hydrateCovers(main);
+  hydrateMedia(main);
+  result.mount?.();
+
+  // 换到另一个栏目时回到页面顶部；同一栏目里切换子标签时保持位置
+  if (name !== state.lastSection) window.scrollTo(0, 0);
+  state.lastSection = name;
+}
+
+// 跳转；如果已经在这个地址，就直接重新渲染
+function go(hash) {
+  if (location.hash === hash) render();
+  else location.hash = hash;
+}
+
+/* =================================================================
+ * 10. 账号相关的界面：顶栏、登录弹窗、修改密码
+ * ================================================================= */
+function renderUserArea() {
+  const box = $('#userArea');
+  if (!Auth.user) {
+    box.innerHTML = '<button class="btn primary small" data-action="open-login">登录</button>';
+    return;
+  }
+  box.innerHTML = `<div class="user">
+    <button class="user-btn" data-action="toggle-menu" aria-haspopup="true" aria-expanded="false" aria-controls="userMenu">
+      <span class="avatar" aria-hidden="true">${esc(Auth.user.slice(0, 1).toUpperCase())}</span>
+      <span class="user-name">${esc(Auth.user)}</span>
+    </button>
+    <div class="menu" id="userMenu">
+      <button data-action="open-password">修改密码</button>
+      <button data-action="logout">退出登录</button>
+    </div>
+  </div>`;
+}
+
+function switchAuthTab(tab) {
+  const isLogin = tab === 'login';
+  $('#tabLogin').setAttribute('aria-selected', isLogin);
+  $('#tabRegister').setAttribute('aria-selected', !isLogin);
+  $('#loginForm').hidden = !isLogin;
+  $('#registerForm').hidden = isLogin;
+  $$('#authDialog .form-error').forEach(el => { el.textContent = ''; });
+  $(isLogin ? '#loginForm input' : '#registerForm input').focus();
+}
+
+function openAuth(tab = 'login', note = '') {
+  const dialog = $('#authDialog');
+  $('#authNote').textContent = note || '';
+  $('#authNote').hidden = !note;
+  $('#loginForm').reset();
+  $('#registerForm').reset();
+  if (!dialog.open) dialog.showModal();
+  switchAuthTab(tab);
+}
+
+async function afterLogin(message) {
+  $('#authDialog').close();
+  await loadFavs();
+  renderUserArea();
+  toast(message);
+  render();
+}
+
+function bindAccountForms() {
+  $('#loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target;
+    try {
+      await Auth.login(f.username.value.trim(), f.password.value);
+      afterLogin(`欢迎回来，${Auth.user}`);
+    } catch (err) {
+      $('.form-error', f).textContent = err.message;
+    }
+  });
+
+  $('#registerForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target;
+    try {
+      if (f.password.value !== f.confirm.value) throw new Error('两次输入的密码不一样。');
+      await Auth.register(f.username.value.trim(), f.password.value);
+      afterLogin(`注册成功，欢迎你，${Auth.user}`);
+    } catch (err) {
+      $('.form-error', f).textContent = err.message;
+    }
+  });
+
+  $('#passwordForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target;
+    try {
+      if (f.password.value !== f.confirm.value) throw new Error('两次输入的新密码不一样。');
+      await Auth.changePassword(f.old.value, f.password.value);
+      $('#passwordDialog').close();
+      toast('密码已修改');
+    } catch (err) {
+      $('.form-error', f).textContent = err.message;
+    }
+  });
+
+  // 点弹窗外面的灰色区域时关闭弹窗
+  $$('dialog').forEach(dialog => dialog.addEventListener('click', e => {
+    if (e.target !== dialog) return;
+    const r = dialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dialog.close();
+  }));
+}
+
+/* =================================================================
+ * 11. 按钮点击：所有带 data-action 的按钮都在这里统一处理
+ * ================================================================= */
+async function toggleFav(btn) {
+  if (!Auth.user) return openAuth('login', '登录后就能收藏喜欢的内容。');
+  const { kind, ref, title } = btn.dataset;
+  const key = `${kind}:${ref}`;
+  if (state.favKeys.has(key)) {
+    const record = await DB.findFav(Auth.user, kind, ref);
+    if (record) await DB.delete('favorites', record.id);
+    state.favKeys.delete(key);
+    toast('已取消收藏');
+  } else {
+    try {
+      await DB.add('favorites', { owner: Auth.user, kind, ref: String(ref), title, createdAt: Date.now() });
+    } catch { /* 已经收藏过（比如连点两下），忽略 */ }
+    state.favKeys.add(key);
+    toast('已收藏');
+  }
+  syncFavButtons();
+  if (location.hash.startsWith('#favorites')) render();
+}
+
+const ACTIONS = {
+  'open-login': el => openAuth('login', el.dataset.note),
+  'open-register': () => openAuth('register'),
+  'auth-tab': el => switchAuthTab(el.dataset.tab),
+  'close-dialog': el => el.closest('dialog').close(),
+
+  'toggle-menu': el => {
+    const open = $('#userMenu').classList.toggle('open');
+    el.setAttribute('aria-expanded', open);
+  },
+  'open-password': () => {
+    $('#userMenu').classList.remove('open');
+    $('#passwordForm').reset();
+    $('#passwordForm .form-error').textContent = '';
+    $('#passwordDialog').showModal();
+  },
+  'logout': async () => {
+    await Auth.logout();
+    await loadFavs();
+    renderUserArea();
+    toast('已退出登录');
+    render();
+  },
+
+  'fav': el => toggleFav(el),
+
+  'write': el => {
+    state.pendingDraft = { zone: el.dataset.zone, about: el.dataset.about };
+    go('#journal/write');
+  },
+  'delete-post': async el => {
+    const post = await DB.get('posts', Number(el.dataset.id));
+    if (!post || post.author !== Auth.user) return;
+    if (!confirm(`删除“${post.title}”吗？删除后不能恢复。`)) return;
+    await DB.delete('posts', post.id);
+    toast('心得已删除');
+    go(`#${ZONES[post.zone].key}/notes`);
+  },
+  'delete-note': async el => {
+    if (!confirm('删除这条随手记吗？')) return;
+    await DB.delete('notes', Number(el.dataset.id));
+    toast('随手记已删除');
+    render();
+  },
+  'delete-media': async el => {
+    if (!confirm('删除这个文件吗？插入过它的心得里也会看不到它。')) return;
+    const id = Number(el.dataset.id);
+    await DB.delete('media', id);
+    forgetMedia(id);
+    toast('文件已删除');
+    render();
+  },
+  'lightbox': async el => {
+    const info = await mediaInfo(Number(el.dataset.id));
+    if (!info) return;
+    $('#lightboxImg').src = info.url;
+    $('#lightboxImg').alt = info.name;
+    $('#lightboxCaption').textContent = info.name;
+    $('#lightbox').showModal();
+  },
+  'pick-media': el => {
+    const info = mediaCache.get(Number(el.dataset.id));
+    $('#pickerDialog').close();
+    if (info && state.pickerTarget) insertMediaRef(state.pickerTarget, info);
+  },
+  'change-cover': el => {
+    state.coverFor = el.dataset.id;
+    $('#coverInput').click();
+  },
+  'reset-cover': async el => {
+    await DB.delete('covers', el.dataset.id);
+    forgetCover(el.dataset.id);
+    toast('已恢复默认图片');
+    render();
+  },
+};
+
+document.addEventListener('click', async e => {
+  // 点到用户菜单外面时收起菜单
+  if (!e.target.closest('.user')) $('#userMenu')?.classList.remove('open');
+
+  const el = e.target.closest('[data-action]');
+  if (!el || !ACTIONS[el.dataset.action]) return;
+  e.preventDefault();
+  try {
+    await ACTIONS[el.dataset.action](el, e);
+  } catch (err) {
+    console.error(err);
+    toast(`操作没有完成：${err.message}`);
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('#userMenu')?.classList.remove('open');
+});
+
+/* =================================================================
+ * 12. 启动
+ * ================================================================= */
+async function init() {
+  if (!('indexedDB' in window)) {
+    $('#view').innerHTML = `<div class="wrap page">${emptyHTML('这个浏览器不支持 IndexedDB。请换用最新版的 Chrome、Edge、Firefox 或 Safari 打开。')}</div>`;
+    return;
+  }
+  try {
+    await DB.open();
+    await seedIfEmpty();
+    await Auth.restore();
+    await loadFavs();
+  } catch (err) {
+    console.error(err);
+    $('#view').innerHTML = `<div class="wrap page">${emptyHTML('数据库打不开。如果开着无痕或隐私模式，请换成普通窗口再试。')}</div>`;
+    return;
+  }
+
+  renderUserArea();
+  bindAccountForms();
+
+  // 搜索框
+  $('#searchForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const q = $('#searchInput').value.trim();
+    if (q) go('#search/' + encodeURIComponent(q));
+  });
+
+  // 更换卡片封面
+  $('#coverInput').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file || !state.coverFor) return;
+    if (!file.type.startsWith('image/')) { toast('请选择一张图片'); return; }
+    await DB.put('covers', { itemId: state.coverFor, blob: file, by: Auth.user, updatedAt: Date.now() });
+    forgetCover(state.coverFor);
+    toast('图片已更换');
+    render();
+  });
+
+  // 插入媒体弹窗里的"上传并插入"
+  $('#pickerUpload').addEventListener('change', async e => {
+    const ids = await uploadFiles(e.target.files);
+    e.target.value = '';
+    if (!ids.length) return;
+    $('#pickerDialog').close();
+    for (const id of ids) insertMediaRef(state.pickerTarget, await mediaInfo(id));
+  });
+
+  window.addEventListener('hashchange', render);
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
