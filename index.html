@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>两个半场</title>
+<title>我的课余生活</title>
 <!--
-  两个半场：有关个人生活经历的网页
+  我的课余生活：有关个人生活经历的网页
   ------------------------------------------------------------
   整个网站就是这一个 HTML 文件，用浏览器直接打开即可。
   文件分三部分：
@@ -119,9 +119,7 @@ h1, h2, h3 { line-height: 1.3; }
    ========================================================= */
 .topbar { position: sticky; top: 0; z-index: 20; background: var(--paper); border-bottom: 1px solid var(--turf); }
 .topbar-inner { display: flex; align-items: center; gap: 20px; height: 64px; }
-.brand { font-family: var(--font-display); font-size: 30px; line-height: 1; text-decoration: none; white-space: nowrap; }
-.brand .a { color: var(--pixel); }
-.brand .b { color: var(--pitch); }
+.brand { font-family: var(--font-display); font-size: 30px; line-height: 1; color: var(--pitch); text-decoration: none; white-space: nowrap; }
 .mainnav { display: flex; gap: 4px; }
 .mainnav a { padding: 6px 14px; border-radius: 999px; text-decoration: none; color: var(--muted); font-weight: 500; white-space: nowrap; }
 .mainnav a:hover { color: var(--ink); background: var(--turf-soft); }
@@ -155,9 +153,7 @@ h1, h2, h3 { line-height: 1.3; }
    ========================================================= */
 .hero { padding: 40px 0 56px; }
 .hero-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 32px; margin-bottom: 24px; }
-.hero-title { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(60px, 9vw, 112px); line-height: .95; }
-.hero-title .a { color: var(--pixel); }
-.hero-title .b { color: var(--pitch); }
+.hero-title { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(52px, 8vw, 104px); line-height: 1; color: var(--ink); }
 .hero-sub { max-width: 26em; margin: 0; color: var(--muted); font-size: 17px; }
 
 .pitch { position: relative; display: grid; grid-template-columns: 1fr 1fr; min-height: clamp(380px, 58vh, 520px); border-radius: var(--r-lg); overflow: hidden; }
@@ -589,7 +585,7 @@ dialog.wide { width: min(760px, calc(100vw - 32px)); }
 <!-- ============ 顶栏：站名、主导航、搜索、登录 ============ -->
 <header class="topbar">
   <div class="wrap topbar-inner">
-    <a class="brand" href="#home" aria-label="两个半场首页"><span class="a">两个</span><span class="b">半场</span></a>
+    <a class="brand" href="#home" aria-label="回到首页">我的课余生活</a>
     <nav class="mainnav" aria-label="主导航">
       <a href="#home" data-nav="home">首页</a>
       <a href="#games" data-nav="games">游戏分区</a>
@@ -610,7 +606,7 @@ dialog.wide { width: min(760px, calc(100vw - 32px)); }
 
 <footer class="site-foot">
   <div class="wrap">
-    <p>两个半场，王建忠的个人生活记录。实用软件实践课程设计，2026 年。</p>
+    <p>我的课余生活：王建忠的个人生活记录网站。实用软件实践课程设计，2026 年。</p>
     <p>账号、心得和媒体文件都保存在本机浏览器的 IndexedDB 里，清除浏览器数据会一起删除。</p>
   </div>
 </footer>
@@ -618,7 +614,7 @@ dialog.wide { width: min(760px, calc(100vw - 32px)); }
 <!-- ============ 弹窗：登录 / 注册 ============ -->
 <dialog id="authDialog" aria-labelledby="authTitle">
   <div class="dlg-head">
-    <h2 id="authTitle">欢迎来到两个半场</h2>
+    <h2 id="authTitle">欢迎来到我的课余生活</h2>
     <button type="button" class="btn ghost small" data-action="close-dialog">关闭</button>
   </div>
   <p class="dlg-note" id="authNote" hidden></p>
@@ -731,7 +727,7 @@ dialog.wide { width: min(760px, calc(100vw - 32px)); }
  *    想换成自己的游戏和运动，改这里就行
  * ================================================================= */
 const SITE = {
-  name: '两个半场',
+  name: '我的课余生活',
   tagline: '一半在屏幕里，一半在操场上。这里记着我课余时间玩过的游戏、做过的运动，和从中想明白的事。',
 };
 
@@ -906,7 +902,7 @@ function highlight(text, q) {
  *    把原生的回调接口包装成 Promise，后面就能用 await 了
  *
  *    数据表（object store）：
- *      users      账号：用户名、盐、密码哈希
+ *      users      账号：用户名、密码哈希
  *      meta       杂项：当前登录状态（session）
  *      posts      心得（Markdown），所有人可见
  *      notes      随手记，只有自己可见
@@ -917,31 +913,27 @@ function highlight(text, q) {
  *      entries    自建板块里添加的条目
  * ================================================================= */
 const DB = {
-  name: 'two-halves',
-  version: 2, // 版本 2 新增了 sections 和 entries 两张表
+  name: 'my-leisure-life',
+  version: 1,
   db: null,
 
   open() {
     return new Promise((resolve, reject) => {
       const req = indexedDB.open(this.name, this.version);
-      // 第一次打开（或版本升级）时建表
-      req.onupgradeneeded = event => {
+      // 第一次打开时建表
+      req.onupgradeneeded = () => {
         const db = req.result;
-        if (event.oldVersion < 1) {
-          db.createObjectStore('users', { keyPath: 'username' });
-          db.createObjectStore('meta', { keyPath: 'key' });
-          db.createObjectStore('posts', { keyPath: 'id', autoIncrement: true }).createIndex('zone', 'zone');
-          db.createObjectStore('notes', { keyPath: 'id', autoIncrement: true }).createIndex('owner', 'owner');
-          db.createObjectStore('media', { keyPath: 'id', autoIncrement: true }).createIndex('owner', 'owner');
-          const fav = db.createObjectStore('favorites', { keyPath: 'id', autoIncrement: true });
-          fav.createIndex('owner', 'owner');
-          fav.createIndex('unique', ['owner', 'kind', 'ref'], { unique: true }); // 同一个人不能重复收藏同一项
-          db.createObjectStore('covers', { keyPath: 'itemId' });
-        }
-        if (event.oldVersion < 2) {
-          db.createObjectStore('sections', { keyPath: 'id', autoIncrement: true });
-          db.createObjectStore('entries', { keyPath: 'id', autoIncrement: true }).createIndex('section', 'section');
-        }
+        db.createObjectStore('users', { keyPath: 'username' });
+        db.createObjectStore('meta', { keyPath: 'key' });
+        db.createObjectStore('sections', { keyPath: 'id', autoIncrement: true });
+        db.createObjectStore('entries', { keyPath: 'id', autoIncrement: true }).createIndex('section', 'section');
+        db.createObjectStore('posts', { keyPath: 'id', autoIncrement: true }).createIndex('zone', 'zone');
+        db.createObjectStore('notes', { keyPath: 'id', autoIncrement: true }).createIndex('owner', 'owner');
+        db.createObjectStore('media', { keyPath: 'id', autoIncrement: true }).createIndex('owner', 'owner');
+        const fav = db.createObjectStore('favorites', { keyPath: 'id', autoIncrement: true });
+        fav.createIndex('owner', 'owner');
+        fav.createIndex('unique', ['owner', 'kind', 'ref'], { unique: true }); // 同一个人不能重复收藏同一项
+        db.createObjectStore('covers', { keyPath: 'itemId' });
       };
       req.onsuccess = () => { this.db = req.result; resolve(this.db); };
       req.onerror = () => reject(req.error);
@@ -971,20 +963,17 @@ const DB = {
 
 /* =================================================================
  * 3. 账号系统
- *    密码不直接保存，而是保存"随机盐 + 密码"的 SHA-256 哈希
+ *    密码不直接保存明文，而是保存密码的 SHA-256 哈希值。
+ *    登录时把输入的密码再算一次哈希，和保存的值一样就说明密码正确。
  * ================================================================= */
 const USERNAME_RULE = /^[A-Za-z0-9_一-龥]{2,16}$/;
 
 const Auth = {
   user: null, // 当前登录的用户名，没登录时是 null
 
-  newSalt() {
-    const bytes = crypto.getRandomValues(new Uint8Array(16));
-    return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
-  },
-
-  async hash(password, salt) {
-    const data = new TextEncoder().encode(salt + ':' + password);
+  // 把密码变成一串 64 位的十六进制字符，同样的密码总是得到同样的结果
+  async hash(password) {
+    const data = new TextEncoder().encode(password);
     if (window.crypto && crypto.subtle) {
       const buffer = await crypto.subtle.digest('SHA-256', data);
       return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -999,14 +988,13 @@ const Auth = {
     if (!USERNAME_RULE.test(username)) throw new Error('用户名需要 2 到 16 个字符，可以用中文、字母、数字和下划线。');
     if (password.length < 6) throw new Error('密码至少 6 位。');
     if (await DB.get('users', username)) throw new Error('这个用户名已经被注册了，换一个试试。');
-    const salt = this.newSalt();
-    await DB.add('users', { username, salt, hash: await this.hash(password, salt), createdAt: Date.now() });
+    await DB.add('users', { username, hash: await this.hash(password), createdAt: Date.now() });
     await this.startSession(username);
   },
 
   async login(username, password) {
     const user = await DB.get('users', username);
-    if (!user || (await this.hash(password, user.salt)) !== user.hash) {
+    if (!user || (await this.hash(password)) !== user.hash) {
       throw new Error('用户名或密码不对，请检查后再试。');
     }
     await this.startSession(username);
@@ -1014,10 +1002,9 @@ const Auth = {
 
   async changePassword(oldPassword, newPassword) {
     const user = await DB.get('users', this.user);
-    if ((await this.hash(oldPassword, user.salt)) !== user.hash) throw new Error('现在的密码不对。');
+    if ((await this.hash(oldPassword)) !== user.hash) throw new Error('现在的密码不对。');
     if (newPassword.length < 6) throw new Error('新密码至少 6 位。');
-    user.salt = this.newSalt();
-    user.hash = await this.hash(newPassword, user.salt);
+    user.hash = await this.hash(newPassword);
     await DB.put('users', user);
   },
 
@@ -1124,8 +1111,7 @@ const SAMPLE_SECTION = {
 
 async function seedIfEmpty() {
   if ((await DB.count('users')) > 0) return;
-  const salt = Auth.newSalt();
-  await DB.add('users', { username: 'demo', salt, hash: await Auth.hash('123456', salt), createdAt: Date.now() });
+  await DB.add('users', { username: 'demo', hash: await Auth.hash('123456'), createdAt: Date.now() });
   const now = Date.now(), day = 86400000, hour = 3600000;
   for (const p of SAMPLE_POSTS) {
     const t = now - p.daysAgo * day;
@@ -1558,7 +1544,7 @@ async function viewHome() {
   const html = `
   <section class="hero"><div class="wrap">
     <div class="hero-head">
-      <h1 class="hero-title"><span class="a">两个</span><span class="b">半场</span></h1>
+      <h1 class="hero-title">我的课余生活</h1>
       <p class="hero-sub">${esc(SITE.tagline)}</p>
     </div>
     <div class="pitch">
@@ -1845,7 +1831,7 @@ function mountEditor(post) {
   const title = $('#postTitle');
   const body = $('#postBody');
   const preview = $('#preview');
-  const draftKey = `two-halves-draft-${Auth.user}`;
+  const draftKey = `draft-${Auth.user}`;
   const getZone = () => $('#postZone').value;
   const setZone = zone => { if (SECTIONS[zone]) $('#postZone').value = zone; };
 
