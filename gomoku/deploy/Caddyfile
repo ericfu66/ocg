@@ -1,0 +1,4 @@
+# Caddy 示例（自动申请 HTTPS 证书，WebSocket 无需额外配置）
+gomoku.example.com {
+    reverse_proxy 127.0.0.1:8080
+}

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c1814">
+<meta name="description" content="在线和 Rapfi 五子棋 AI 对弈，支持自由、标准、连珠规则与六档难度。">
+<title>弈 · 五子棋 AI 对弈</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="seal">弈</span>
+    <div>
+      <h1>五子棋 · 人机对弈</h1>
+      <p class="sub">由 <a href="https://github.com/dhbloo/rapfi" target="_blank" rel="noopener">Rapfi</a> 引擎 + NNUE 神经网络驱动</p>
+    </div>
+  </div>
+  <div class="conn" id="conn" title="与服务器的连接状态"><i></i><span>连接中…</span></div>
+</header>
+
+<main class="layout">
+  <section class="board-wrap">
+    <div class="status-line">
+      <div class="player" id="pBlack"><span class="dot black"></span><span class="pname">黑方</span></div>
+      <div class="turn" id="turnText">准备开始</div>
+      <div class="player" id="pWhite"><span class="pname">白方</span><span class="dot white"></span></div>
+    </div>
+    <div class="board-box" id="boardBox">
+      <canvas id="board" aria-label="棋盘"></canvas>
+      <div class="overlay hidden" id="overlay">
+        <div class="result-card">
+          <div class="result-title" id="resultTitle">你赢了</div>
+          <div class="result-sub" id="resultSub"></div>
+          <div class="result-actions">
+            <button class="btn primary" id="btnAgain">再来一局</button>
+            <button class="btn" id="btnReview">查看棋盘</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="btnNew">新对局</button>
+      <button class="btn" id="btnUndo">悔棋</button>
+      <button class="btn" id="btnHint">提示</button>
+      <button class="btn" id="btnResign">认输</button>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="card">
+      <h2>对局设置</h2>
+      <label class="field">
+        <span>规则</span>
+        <div class="seg" id="segRule">
+          <button data-v="freestyle" class="on">自由</button>
+          <button data-v="standard">标准</button>
+          <button data-v="renju">连珠</button>
+        </div>
+      </label>
+      <p class="hint-text" id="ruleDesc"></p>
+      <label class="field">
+        <span>棋盘</span>
+        <div class="seg" id="segSize">
+          <button data-v="15" class="on">15 路</button>
+          <button data-v="19">19 路</button>
+          <button data-v="20">20 路</button>
+        </div>
+      </label>
+      <label class="field">
+        <span>执子</span>
+        <div class="seg" id="segColor">
+          <button data-v="black" class="on">执黑先行</button>
+          <button data-v="white">执白后行</button>
+        </div>
+      </label>
+      <div class="field col">
+        <span>难度</span>
+        <div class="levels" id="levels"></div>
+      </div>
+      <p class="pending-note hidden" id="pendingNote">设置已更改，点击「新对局」生效</p>
+    </div>
+
+    <div class="card">
+      <h2>AI 思考 <span class="think-badge hidden" id="thinkBadge"><i></i>思考中</span></h2>
+      <div class="evalbar" title="局势评估：左黑右白">
+        <div class="evalbar-b" id="evalB"></div>
+        <span class="evalbar-l" id="evalBL">黑 50%</span>
+        <span class="evalbar-r" id="evalWL">白 50%</span>
+      </div>
+      <dl class="stats">
+        <div><dt>深度</dt><dd id="stDepth">–</dd></div>
+        <div><dt>评估</dt><dd id="stEval">–</dd></div>
+        <div><dt>速度</dt><dd id="stSpeed">–</dd></div>
+        <div><dt>用时</dt><dd id="stTime">–</dd></div>
+      </dl>
+      <div class="pv"><span>主变</span><code id="stPV">–</code></div>
+      <div class="progress"><div id="progressBar"></div></div>
+    </div>
+
+    <div class="card">
+      <h2>棋谱 <button class="link" id="btnCopy">复制</button></h2>
+      <ol class="moves" id="moveList"></ol>
+      <div class="toggles">
+        <label><input type="checkbox" id="optNumbers"> 显示手数</label>
+        <label><input type="checkbox" id="optSound" checked> 落子音效</label>
+        <label><input type="checkbox" id="optConfirm"> 落子确认</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>战绩</h2>
+      <table class="record" id="record"></table>
+      <p class="engine-info" id="engineInfo"></p>
+    </div>
+  </aside>
+</main>
+
+<div class="toast hidden" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>

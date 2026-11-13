@@ -1,0 +1,5 @@
+# 引擎二进制与权重由 scripts/build-engine.sh 生成
+engine/*
+!engine/.gitkeep
+server/node_modules
+*.log

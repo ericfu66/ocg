@@ -1,0 +1,18 @@
+services:
+  gomoku:
+    build:
+      context: .
+      args:
+        # avx2（默认，通用）| avx512 | avxvnni | sse | native | arm64（ARM 服务器）
+        CPU_TARGET: avx2
+    image: gomoku-rapfi:latest
+    container_name: gomoku
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"   # 只监听本机，由 Nginx/Caddy 反向代理对外提供 HTTPS
+    environment:
+      POOL_SIZE: "2"          # 同时搜索的引擎数（=同时被 AI 服务的玩家数，多出的排队）
+      # THREADS: "4"          # 高难度使用的线程数，默认 = CPU 核数
+      HASH_MB: "512"          # 每个引擎的置换表大小
+      TOP_TIME_MS: "20000"    # 「宗师」难度每步思考时间（毫秒）
+      MAX_CONN_PER_IP: "8"

@@ -1,0 +1,17 @@
+{
+  "name": "gomoku-rapfi-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "和 AI 下五子棋：Node.js WebSocket 服务端，驱动 Rapfi 引擎",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "8.18.3"
+  }
+}
